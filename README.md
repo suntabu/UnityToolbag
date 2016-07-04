@@ -20,6 +20,13 @@ Simply clone the repository into the 'Assets' folder of a Unity project and you'
 
 Alternatively you can just cherry pick the features you want and copy only those folders into your project. Be careful, though, as some of the features may depend on others. See the individual feature README files to find out.
 
+## Other Unity Repos
+
+Here are some other repos that contain Unity goodies:
+
+- [UnityTiled](https://github.com/nickgravelyn/UnityTiled) - This is my system for importing Tiled maps into Unity.
+- [Awesome-Unity](https://github.com/RyanNielson/awesome-unity) - This is a neat repo that just lists a bunch of other Unity repos. Check there for great stuff.
+
 ## Contributing
 
 Please read the the [guide for contributing](CONTRIBUTING.md) before making any pull requests, please!
