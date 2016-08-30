@@ -98,14 +98,6 @@ namespace UnityToolbag
         public new NetworkView networkView { get { return _networkView ? _networkView : (_networkView = GetComponent<NetworkView>()); } }
 
         [HideInInspector, NonSerialized]
-        private ParticleEmitter _particleEmitter;
-
-        /// <summary>
-        /// Gets the ParticleEmitter attached to the object.
-        /// </summary>
-        public new ParticleEmitter particleEmitter { get { return _particleEmitter ? _particleEmitter : (_particleEmitter = GetComponent<ParticleEmitter>()); } }
-
-        [HideInInspector, NonSerialized]
         private ParticleSystem _particleSystem;
 
         /// <summary>
