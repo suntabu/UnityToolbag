@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using System;
 using System.Reflection;
 
 namespace UnityToolbag
@@ -9,7 +10,7 @@ namespace UnityToolbag
         [MenuItem("Assets/Sync Solution #&s")]
         public static void Sync()
         {
-            var editor = System.Type.GetType("UnityEditor.SyncVS,UnityEditor");
+            var editor = Type.GetType("UnityEditor.SyncVS, UnityEditor");
             var SyncSolution = editor.GetMethod("SyncSolution", BindingFlags.Public | BindingFlags.Static);
             SyncSolution.Invoke(null, null);
             Debug.Log("Solution synced!");
