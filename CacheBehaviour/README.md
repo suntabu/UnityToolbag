@@ -1,6 +1,3 @@
-CacheBehaviour
-===
-
 There are two reasons not to use the default component properties (e.g. `rigidBody`, `particleSystem`, etc) on `MonoBehaviour`:
 
 1. The properties do no caching, so each time you use the property you are calling `GetComponent`.

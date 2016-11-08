@@ -1,6 +1,3 @@
-Future
-===
-
 Futures are a common pattern in many software projects and you can read more at [http://en.wikipedia.org/wiki/Futures_and_promises](http://en.wikipedia.org/wiki/Futures_and_promises). Typically in C# you'd use the [System.Threading.Tasks](http://msdn.microsoft.com/en-us/library/vstudio/system.threading.tasks(v=vs.110).aspx) namespace, but Unity is using a woefully out of date version of Mono that lacks this functionality. `Future.cs` provides an extremely simple implementation that works for basic use cases.
 
 The core of the system for game code is the `IFuture<T>` interface. The interface provides the user with the state of the future, the value (if one was retrieved), an exception (if an error occurred while retrieving the value), and the ability to register callbacks for completion.

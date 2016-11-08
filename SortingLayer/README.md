@@ -1,5 +1,3 @@
-# Sorting Layer
-
 Unity 4.3 added sorting layers and manual sorting orders to all renderers, however only the sprite renderer exposes the values in the inspector. If you're making a 2D game and want to use a text mesh or a standard MeshRenderer, your only option is to adjust sorting layers in code. This folder provides a couple ways of nicely accessing sorting layers on non-sprite objects:
 
 

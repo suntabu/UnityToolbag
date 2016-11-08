@@ -1,6 +1,3 @@
-UnityConstants
-===
-
 UnityConstants is a code generator that produces a single file called `UnityConstants.cs` containing values for items you may modify in the editor. This tool currently generates constants for the following:
 
 - Tags

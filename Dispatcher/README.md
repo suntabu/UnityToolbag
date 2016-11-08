@@ -1,6 +1,3 @@
-Dispatcher
-===
-
 `Dispatcher` is an incredibly simple little component/system that makes it possible to invoke code on the main thread from other threads. Usage is simple:
 
 1. Add the `Dispatcher` component to an object in your scene.
