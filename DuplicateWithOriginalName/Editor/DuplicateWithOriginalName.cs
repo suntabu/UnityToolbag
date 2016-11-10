@@ -29,6 +29,8 @@ namespace UnityToolbag
 
                 newObj.name = origObj.name;
                 newSelection.Add(newObj);
+
+                Undo.RegisterCreatedObjectUndo(newObj, "Duplicate With Original Name");
             }
 
             Selection.objects = newSelection.Cast<Object>().ToArray();
