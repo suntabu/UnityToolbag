@@ -7,7 +7,6 @@ This repo is a host for any little Unity scripts I write that are simple and eas
 - [CacheBehaviour](CacheBehaviour) - A drop-in replacement for `MonoBehaviour` as a script base class that provides caching of all standard properties.
 - [Dispatcher](Dispatcher) - Provides a mechanism for invoking code on the main thread from background threads.
 - [DrawTitleSafeArea](DrawTitleSafeArea) - Simple component you add to a camera to render the title safe area.
-- [DuplicateWithOriginalName](DuplicateWithOriginalName) - Editor menu item for duplicating objects in a scene while retaining the original object names.
 - [Future](Future) - Simple implementation of the [future](http://en.wikipedia.org/wiki/Futures_and_promises) programming concept.
 - [SimpleSpriteAnimation](SimpleSpriteAnimation) - A very basic system for a simpler frame based animation for Unity's 2D system.
 - [SnapToSurface](SnapToSurface) - Editor tools to assist in positioning objects.
