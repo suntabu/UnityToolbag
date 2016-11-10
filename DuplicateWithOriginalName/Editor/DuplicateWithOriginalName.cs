@@ -17,10 +17,13 @@ namespace UnityToolbag
             foreach (var origObj in Selection.gameObjects)
             {
                 var newObj = Object.Instantiate(origObj);
+                newObj.transform.SetParent(origObj.transform.parent);
 
                 // If this object is a prefab instance we need to connect the new object to the prefab
                 // and copy over all property modifications so that the instances are identical.
-                if (PrefabUtility.GetPrefabType(origObj) == PrefabType.PrefabInstance)
+                var prefabType = PrefabUtility.GetPrefabType(origObj);
+                if (prefabType == PrefabType.PrefabInstance ||
+                    prefabType == PrefabType.ModelPrefabInstance)
                 {
                     var prefab = PrefabUtility.GetPrefabParent(origObj) as GameObject;
                     newObj = PrefabUtility.ConnectGameObjectToPrefab(newObj, prefab);
