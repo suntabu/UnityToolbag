@@ -128,5 +128,13 @@ namespace UnityToolbag
         /// Gets the Rigidbody2D attached to the object.
         /// </summary>
         public new Rigidbody2D rigidbody2D { get { return _rigidbody2D ? _rigidbody2D : (_rigidbody2D = GetComponent<Rigidbody2D>()); } }
+
+        [HideInInspector, NonSerialized]
+        private RectTransform _rectTransform;
+
+        /// <summary>
+        /// Gets the RectTransform attached to the object.
+        /// </summary>
+        public new RectTransform rectTransform { get { return _rectTransform ? _rectTransform : (_rectTransform = GetComponent<RectTransform>()); } }
     }
 }
