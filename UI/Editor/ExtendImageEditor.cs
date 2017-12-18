@@ -1,8 +1,9 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using UnityEditor.UI;
 using UnityEngine.UI;
 
-namespace UnityEditor.UI{
+namespace UnityToolbag.UI{
 	[CustomEditor(typeof(UnityEngine.UI.ExtendImage), true)]
 	public class ExtendImageEditor : ImageEditor {
 
