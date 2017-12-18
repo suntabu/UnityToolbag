@@ -2,7 +2,7 @@
 using System.Collections;
 using UnityEngine.UI;
 
-namespace UnityEngine.UI
+namespace UnityToolbag.UI
 {
     /// <summary>
     /// 修改图片显示大小，触摸区域不变
