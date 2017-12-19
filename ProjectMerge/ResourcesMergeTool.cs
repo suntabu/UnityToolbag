@@ -22,8 +22,10 @@ public class ResourcesMergeTool : ScriptableWizard
             }
             Folder = dirPath;
 
-            Target = Path.Combine(Folder, "Resources");
+            
         }
+        
+        Target = Path.Combine(Folder, "Resources");
     }
 
     [MenuItem("Tools/Merge resources folder")]
@@ -44,7 +46,7 @@ public class ResourcesMergeTool : ScriptableWizard
         List<string> filePaths = new List<string>();
 
         filePaths.AddRange(
-            Directory.GetFiles(Path.GetFullPath(".") + Path.DirectorySeparatorChar + Folder, "*.*",
+            Directory.GetFiles( Folder, "*.*",
                 SearchOption.AllDirectories)
         );
 
@@ -62,13 +64,14 @@ public class ResourcesMergeTool : ScriptableWizard
                 var newPath = Target + temp.Substring(index, temp.Length - index);
                 Debug.Log(filePath + " --- > " + newPath);
 
-                if (!Directory.Exists(Path.GetDirectoryName(newPath)))
+                var targetParent = Path.GetDirectoryName(newPath);
+                if (!Directory.Exists(targetParent))
                 {
-                    Directory.CreateDirectory(Target);
+                    Directory.CreateDirectory(targetParent);
                 }
                 try
                 {
-                    if (!File.Exists(filePath))
+                    if (File.Exists(filePath))
                     {
                         if (File.Exists(newPath))
                         {
