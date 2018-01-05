@@ -224,7 +224,7 @@ namespace UnityToolbag.ConsoleServer
                             context.match = match;
                             route.m_callback(context);
                         });
-                        
+
                         handled = !context.pass;
                         if (handled)
                             break;
@@ -237,8 +237,6 @@ namespace UnityToolbag.ConsoleServer
                         if (handled)
                             break;
                     }
-
-                    
                 }
 
                 if (!handled)
@@ -274,9 +272,7 @@ namespace UnityToolbag.ConsoleServer
                 }
 
                 HandleRequest(context);
-                
-                Console.Update();
-                
+
                 Thread.Sleep(16);
             }
         }
@@ -326,14 +322,15 @@ namespace UnityToolbag.ConsoleServer
 
         public void Stop()
         {
-            if (mRegisterLogCallback) {
+            if (mRegisterLogCallback)
+            {
 #if UNITY_5_3_OR_NEWER
                 Application.logMessageReceived -= Console.LogCallback;
 #else
         Application.RegisterLogCallback(null);
 #endif
             }
-            
+
             if (listener != null)
             {
                 listener.Stop();
@@ -404,7 +401,7 @@ namespace UnityToolbag.ConsoleServer
     {
         public delegate void Callback(RequestContext context);
 
-        public RouteAttribute(string route, string methods = @"(GET|HEAD)", bool runOnMainThread = true)
+        public RouteAttribute(string route, string methods = @"(GET|HEAD)", bool runOnMainThread = false)
         {
             m_route = new Regex(route, RegexOptions.IgnoreCase);
             m_methods = new Regex(methods);
@@ -506,14 +503,12 @@ namespace UnityToolbag.ConsoleServer
         private CommandTree m_commands;
         private List<string> m_output;
         private List<string> m_history;
-        private Queue<QueuedCommand> m_commandQueue;
 
         private Console()
         {
             m_commands = new CommandTree();
             m_output = new List<string>();
             m_history = new List<string>();
-            m_commandQueue = new Queue<QueuedCommand>();
 
             RegisterAttributes();
         }
@@ -527,23 +522,6 @@ namespace UnityToolbag.ConsoleServer
             }
         }
 
-        public static void Update()
-        {
-            while (Instance.m_commandQueue.Count > 0)
-            {
-                QueuedCommand cmd = Instance.m_commandQueue.Dequeue();
-                cmd.command.m_callback(cmd.args);
-            }
-        }
-
-        /* Queue a command to be executed on update on the main thread */
-        public static void Queue(CommandAttribute command, string[] args)
-        {
-            QueuedCommand queuedCommand = new QueuedCommand();
-            queuedCommand.command = command;
-            queuedCommand.args = args;
-            Instance.m_commandQueue.Enqueue(queuedCommand);
-        }
 
         /* Execute a command */
         public static void Run(string str)
@@ -561,6 +539,47 @@ namespace UnityToolbag.ConsoleServer
         public static void Clear()
         {
             Instance.m_output.Clear();
+        }
+
+
+        [Command("lp", "list playerprefs", true)]
+        public static void ShowPlayerPrefs(string[] args)
+        {
+            if (args.Length >= 1)
+            {
+                if (PlayerPrefs.HasKey(args[0]))
+                {
+                    Log("    " + args[0] + " = " + PlayerPrefs.GetString(args[0]));
+                }
+                else
+                    Log("    has not a key: " + args[0]);
+            }
+            else
+            {
+                Log("    need a key for inspecting");
+            }
+        }
+
+        [Command("as", "add string to playerprefs", true)]
+        public static void AddString(string[] args)
+        {
+            if (args.Length >= 2)
+            {
+                PlayerPrefs.SetString(args[0], args[1]);
+                Log("    added " + args[0] + " = " + args[1]);
+            }
+            else
+            {
+                Log("    need a key & value for inspecting");
+            }
+        }
+
+
+        [Command("cp", "clear all playerprefs", true)]
+        public static void DeleteAll(string[] args)
+        {
+            PlayerPrefs.DeleteAll();
+            Log("    Deleted All");
         }
 
         /* Print a list of all console commands */
@@ -902,13 +921,14 @@ namespace UnityToolbag.ConsoleServer
             {
                 Console.Log("command not found");
             }
-            else if (m_command.m_runOnMainThread)
-            {
-                Console.Queue(m_command, args);
-            }
             else
             {
-                m_command.m_callback(args);
+                if (m_command.m_runOnMainThread)
+                {
+                    Dispatcher.Invoke(() => { m_command.m_callback(args); });
+                }
+                else
+                    m_command.m_callback(args);
             }
         }
     }
