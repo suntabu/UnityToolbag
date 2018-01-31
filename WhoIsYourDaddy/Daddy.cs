@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Text;
 using AClockworkBerry;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,7 +18,8 @@ namespace UnityToolbag.WhoIsYourDaddy
     public class Daddy : MonoBehaviour
     {
         public const string DONE = "DONE";
-        public const string ERROR = "ERROR:{0}";
+        public const string ERROR = "ERROR : {0}";
+        public const string MSG = ">> {0}";
 
 
         public static bool IsPersistent = true;
@@ -142,7 +144,7 @@ namespace UnityToolbag.WhoIsYourDaddy
                         foreach (DaddyCommandAttribute rule in attrs)
                         {
                             rule.CommandInvoker = cbm;
-
+                            rule.methodName = method.Name;
                             _attributes.Add(rule);
 
                             Debug.Log("add :" + rule.msg);
@@ -224,20 +226,29 @@ namespace UnityToolbag.WhoIsYourDaddy
 
             for (var index = 0; index < _attributes.Count; index++)
             {
-                GUILayout.BeginHorizontal();
-                var rectX = 0;
-                var rectY = ItemHeight * index;
-                var rectWidth = w / 2f;
+                var attribute = _attributes[index];
+
+
+                var rectX = padding;
+                var rectY = (ItemHeight * 2 + padding) * index + padding;
+                var rectWidth = w;
                 var rectHeight = ItemHeight;
                 var rect = new Rect(rectX, rectY, rectWidth, rectHeight);
+                GUI.Label(rect, attribute.msg);
+
+                GUILayout.BeginHorizontal();
+                rect.width = w / 2f - 4 * padding;
+                rect.y += ItemHeight - 4 * padding;
                 inputStrs[index] = GUI.TextField(rect, inputStrs[index] ?? "");
-                rect.x = rectWidth;
-                var attribute = _attributes[index];
-                if (GUI.Button(rect, attribute.msg))
+
+                rect.x = rect.width + 2 * padding;
+                if (GUI.Button(rect, attribute.methodName))
                 {
                     result = attribute.CommandInvoker.Invoke(inputStrs[index]);
                 }
                 GUILayout.EndHorizontal();
+
+                GUILayout.Space(padding);
             }
             GUI.EndScrollView();
 
@@ -267,22 +278,48 @@ namespace UnityToolbag.WhoIsYourDaddy
             styleText = new GUIStyle();
             styleText.fontSize = FontSize;
         }
+        
+        protected float m_checkValue = 0.8f;  
+  
+        private Vector3 m_detalAcceleration;  
+        private Vector3 m_oldAcceleration;  
+        private Vector3 m_newAcceleration;  
+        
+        private void CheckVibrate()  
+        {  
+            m_newAcceleration = Input.acceleration;  
+            m_detalAcceleration = m_newAcceleration - m_oldAcceleration;  
+            m_oldAcceleration = m_newAcceleration;  
+  
+            if (m_detalAcceleration.x > m_checkValue ||  
+                m_detalAcceleration.y > m_checkValue ||  
+                m_detalAcceleration.z > m_checkValue)  
+            {  
+#if UNITY_ANDROID  
+  
+                /// 手机震动  
+                Handheld.Vibrate();  
+              
+                /////同样是震动，但是这个接口已经过时的，不要用了  
+                //iPhoneUtils.Vibrate();  
+#elif UNIYT_IPHONE  
+/// 手机震动，是不是这个接口,没测试过  
+            Handheld.Vibrate();  
+#endif  
+            }  
+        }  
     }
 
 
     [AttributeUsage(AttributeTargets.Method)]
     public class DaddyCommandAttribute : Attribute
     {
+        public string methodName;
         public string msg;
 
         public DaddyCommandAttribute(string str)
         {
             msg = str;
-        }
-
-        public void LogAssert(bool isPass, Object asset)
-        {
-            Debug.Assert(isPass, msg + " : " + asset.name, asset);
         }
 
 
@@ -299,6 +336,62 @@ namespace UnityToolbag.WhoIsYourDaddy
             {
                 SceneManager.LoadScene(sceneName);
                 return Daddy.DONE;
+            }
+            catch (Exception e)
+            {
+                return string.Format(Daddy.ERROR, e.Message);
+            }
+        }
+
+        [DaddyCommand("Show all audioclip in scene")]
+        public static string ShowPlayingSound(string para)
+        {
+            try
+            {
+                var audiosources = GameObject.FindObjectsOfType<AudioSource>();
+                var sb = new StringBuilder();
+                foreach (var audiosource in audiosources)
+                {
+                    if (audiosource.clip != null)
+                    {
+                        var msg = string.Format(Daddy.MSG,
+                            "[" + audiosource.clip.name + "] is " + (audiosource.isPlaying ? "" : " NOT ") +
+                            " playing\n");
+                        sb.Append(msg);
+                    }
+                }
+
+                return sb.ToString();
+            }
+            catch (Exception e)
+            {
+                return string.Format(Daddy.ERROR, e.Message);
+            }
+        }
+
+        [DaddyCommand("Check whether a gameobject exists")]
+        public static string CheckGameObjectExist(string path)
+        {
+            try
+            {
+                //TODO:
+                return Daddy.DONE;
+            }
+            catch (Exception e)
+            {
+                return string.Format(Daddy.ERROR, e.Message);
+            }
+        }
+
+        [DaddyCommand("Write key/STRING value to playerprefs, use ',' to split")]
+        public static string WriteKeyStringValue(string vals)
+        {
+            try
+            {
+                var strs = vals.Split(',');
+                var oldStr = PlayerPrefs.GetString(strs[0]);
+                PlayerPrefs.SetString(strs[0], strs[1]);
+                return string.Format(Daddy.MSG, strs[0] + " : " + oldStr + " --> " + strs[1]);
             }
             catch (Exception e)
             {
