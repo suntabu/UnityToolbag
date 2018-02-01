@@ -1,6 +1,4 @@
-﻿#if daddy
-#define daddy
-#endif
+﻿#define daddy1
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using AClockworkBerry;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
@@ -17,8 +16,8 @@ namespace UnityToolbag.WhoIsYourDaddy
 {
     public class Daddy : MonoBehaviour
     {
-        public const string DONE = "DONE";
-        public const string ERROR = "ERROR : {0}";
+        public const string DONE = ">> DONE";
+        public const string ERROR = ">> ERROR : {0}";
         public const string MSG = ">> {0}";
 
 
@@ -98,7 +97,7 @@ namespace UnityToolbag.WhoIsYourDaddy
             }
         }
 
-
+#if daddy
         public void Awake()
         {
             Daddy[] obj = GameObject.FindObjectsOfType<Daddy>();
@@ -159,6 +158,11 @@ namespace UnityToolbag.WhoIsYourDaddy
         void OnEnable()
         {
             if (!ShowInEditor && Application.isEditor) return;
+
+
+#if UNITY_EDITOR
+            isOpen = true;
+#endif
         }
 
         void OnDisable()
@@ -167,7 +171,6 @@ namespace UnityToolbag.WhoIsYourDaddy
             if (destroying) return;
         }
 
-        [Conditional("daddy")]
         void Update()
         {
             if (!ShowInEditor && Application.isEditor) return;
@@ -178,16 +181,14 @@ namespace UnityToolbag.WhoIsYourDaddy
             // Remove overflowing rows
 //            while (queue.Count > TotalRows)
 //                queue.Dequeue();
-        }
 
-        Vector2 scrollPos = Vector2.one;
-        private string[] inputStrs;
-        string result = "";
+            CheckVibrate();
+        }
 
         [Conditional("daddy")]
         void OnGUI()
         {
-            if (!ShowInEditor && Application.isEditor) return;
+            if (!ShowInEditor && Application.isEditor || !isOpen) return;
 
             float w = (Screen.width - 2 * Margin) * Width;
             float h = (Screen.height - 2 * Margin) * Height;
@@ -245,6 +246,8 @@ namespace UnityToolbag.WhoIsYourDaddy
                 if (GUI.Button(rect, attribute.methodName))
                 {
                     result = attribute.CommandInvoker.Invoke(inputStrs[index]);
+                    
+                    Event.current.Use();
                 }
                 GUILayout.EndHorizontal();
 
@@ -257,6 +260,12 @@ namespace UnityToolbag.WhoIsYourDaddy
 
             GUILayout.EndArea();
         }
+#endif
+        Vector2 scrollPos = Vector2.one;
+        private string[] inputStrs;
+        string result = "";
+        private bool isOpen = false;
+
 
         public void InspectorGUIUpdated()
         {
@@ -278,36 +287,46 @@ namespace UnityToolbag.WhoIsYourDaddy
             styleText = new GUIStyle();
             styleText.fontSize = FontSize;
         }
-        
-        protected float m_checkValue = 0.8f;  
-  
-        private Vector3 m_detalAcceleration;  
-        private Vector3 m_oldAcceleration;  
-        private Vector3 m_newAcceleration;  
-        
-        private void CheckVibrate()  
-        {  
-            m_newAcceleration = Input.acceleration;  
-            m_detalAcceleration = m_newAcceleration - m_oldAcceleration;  
-            m_oldAcceleration = m_newAcceleration;  
-  
-            if (m_detalAcceleration.x > m_checkValue ||  
-                m_detalAcceleration.y > m_checkValue ||  
-                m_detalAcceleration.z > m_checkValue)  
-            {  
-#if UNITY_ANDROID  
-  
+
+        protected float m_checkValue = 0.8f;
+
+        private Vector3 m_detalAcceleration;
+        private Vector3 m_oldAcceleration;
+        private Vector3 m_newAcceleration;
+        private const float m_interval = 1f;
+        private float m_delta = 0f;
+
+        private void CheckVibrate()
+        {
+            m_delta += Time.deltaTime;
+            if (m_delta < m_interval)
+            {
+                return;
+            }
+
+            m_newAcceleration = Input.acceleration;
+            m_detalAcceleration = m_newAcceleration - m_oldAcceleration;
+            m_oldAcceleration = m_newAcceleration;
+
+            if (m_detalAcceleration.x > m_checkValue ||
+                m_detalAcceleration.y > m_checkValue ||
+                m_detalAcceleration.z > m_checkValue)
+            {
+                isOpen = !isOpen;
+                m_delta = 0;
+#if UNITY_ANDROID
+
                 /// 手机震动  
-                Handheld.Vibrate();  
-              
+                Handheld.Vibrate();
+
                 /////同样是震动，但是这个接口已经过时的，不要用了  
                 //iPhoneUtils.Vibrate();  
-#elif UNIYT_IPHONE  
+#elif UNIYT_IPHONE
 /// 手机震动，是不是这个接口,没测试过  
             Handheld.Vibrate();  
-#endif  
-            }  
-        }  
+#endif
+            }
+        }
     }
 
 
