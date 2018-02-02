@@ -1,4 +1,4 @@
-﻿#define daddy1
+#define daddy1
 
 using System;
 using System.Collections.Generic;
@@ -48,7 +48,7 @@ namespace UnityToolbag.WhoIsYourDaddy
 
         public PanelAnchor AnchorPosition = PanelAnchor.BottomLeft;
 
-        public int FontSize = 14;
+        public int FontSize = 25;
 
         [Range(0f, 01f)] public float BackgroundOpacity = 0.5f;
         public Color BackgroundColor = Color.black;
@@ -185,7 +185,6 @@ namespace UnityToolbag.WhoIsYourDaddy
             CheckVibrate();
         }
 
-        [Conditional("daddy")]
         void OnGUI()
         {
             if (!ShowInEditor && Application.isEditor || !isOpen) return;
@@ -222,7 +221,8 @@ namespace UnityToolbag.WhoIsYourDaddy
 
             GUILayout.BeginArea(new Rect(x, y, w, h), styleContainer);
 
-            scrollPos = GUI.BeginScrollView(new Rect(0, 0, w, h / 2), scrollPos, new Rect(0, 0, w, scrollHeight), false,
+            scrollPos = GUI.BeginScrollView(new Rect(0, 0, w, h / 2), scrollPos,
+                new Rect(0, 0, w - 6 * padding, scrollHeight), false,
                 false);
 
             for (var index = 0; index < _attributes.Count; index++)
@@ -232,22 +232,20 @@ namespace UnityToolbag.WhoIsYourDaddy
 
                 var rectX = padding;
                 var rectY = (ItemHeight * 2 + padding) * index + padding;
-                var rectWidth = w;
+                var rectWidth = w - 4 * padding;
                 var rectHeight = ItemHeight;
                 var rect = new Rect(rectX, rectY, rectWidth, rectHeight);
-                GUI.Label(rect, attribute.msg);
+                GUI.Label(rect, attribute.msg,styleText);
 
                 GUILayout.BeginHorizontal();
-                rect.width = w / 2f - 4 * padding;
-                rect.y += ItemHeight - 4 * padding;
+                rect.width = w / 2f - 6 * padding;
+                rect.y += ItemHeight + 10 ;
                 inputStrs[index] = GUI.TextField(rect, inputStrs[index] ?? "");
 
-                rect.x = rect.width + 2 * padding;
-                if (GUI.Button(rect, attribute.methodName))
+                rect.x = rect.width + 3 * padding;
+                if (GUI.Button(rect, attribute.methodName,styleText))
                 {
                     result = attribute.CommandInvoker.Invoke(inputStrs[index]);
-                    
-                    Event.current.Use();
                 }
                 GUILayout.EndHorizontal();
 
@@ -264,7 +262,17 @@ namespace UnityToolbag.WhoIsYourDaddy
         Vector2 scrollPos = Vector2.one;
         private string[] inputStrs;
         string result = "";
-        private bool isOpen = false;
+        private bool m_isOpen = false;
+
+        private bool isOpen
+        {
+            get { return m_isOpen; }
+            set
+            {
+                m_isOpen = value;
+//                EventSystem.current.enabled = !m_isOpen;
+            }
+        }
 
 
         public void InspectorGUIUpdated()
@@ -286,6 +294,10 @@ namespace UnityToolbag.WhoIsYourDaddy
 
             styleText = new GUIStyle();
             styleText.fontSize = FontSize;
+            styleText.normal.background = back;
+            styleText.normal.textColor = Color.white;
+            styleText.padding = new RectOffset(ItemHeight/3,ItemHeight/3,ItemHeight/3,ItemHeight/3);
+            
         }
 
         protected float m_checkValue = 0.8f;
