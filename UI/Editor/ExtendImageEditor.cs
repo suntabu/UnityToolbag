@@ -35,7 +35,8 @@ namespace UnityToolbag.UI
             }
 
             var img = new GameObject("ExtendImage").AddComponent<ExtendImage>();
-            img.transform.SetParent(selection.transform);
+            img.transform.SetParent(selection.transform,false);
+            img.transform.localScale = Vector3.one;
         }
     }
 }
