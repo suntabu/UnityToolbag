@@ -18,8 +18,8 @@ namespace UnityToolbag.WhoIsYourDaddy
     {
         public const string DONE = ">> DONE";
         public const string ERROR = ">> ERROR : {0}";
-        public const string MSG = ">> {0}";
-        public const string MSG_1 = "   {0}";
+        public const string MSG   = ">> {0}";
+        public const string MSG_1 = "    {0}";
         public const string MSG_2 = "     {0}";
         public static bool IsPersistent = true;
 
@@ -488,6 +488,47 @@ namespace UnityToolbag.WhoIsYourDaddy
                 var newValue = strs[1];
                 var oldStr = PlayerPrefs.GetString(key);
                 PlayerPrefs.SetString(key, newValue);
+                PlayerPrefs.Save();
+
+                return string.Format(Daddy.MSG, key + " : " + oldStr + " --> " + newValue);
+            }
+            catch (Exception e)
+            {
+                return string.Format(Daddy.ERROR, e.Message);
+            }
+        }
+        
+        [DaddyCommand("Write key/INT value to playerprefs, use ',' to split")]
+        public static string WriteKeyIntValue(string vals)
+        {
+            try
+            {
+                var strs = vals.Split(',');
+                var key = strs[0];
+                var newValue = int.Parse(strs[1]);
+                var oldStr = PlayerPrefs.GetInt(key);
+                PlayerPrefs.SetInt(key, newValue);
+                PlayerPrefs.Save();
+
+                return string.Format(Daddy.MSG, key + " : " + oldStr + " --> " + newValue);
+            }
+            catch (Exception e)
+            {
+                return string.Format(Daddy.ERROR, e.Message);
+            }
+        }
+        
+        
+        [DaddyCommand("Write key/FLOAT value to playerprefs, use ',' to split")]
+        public static string WriteKeyFloatValue(string vals)
+        {
+            try
+            {
+                var strs = vals.Split(',');
+                var key = strs[0];
+                var newValue = float.Parse(strs[1]);
+                var oldStr = PlayerPrefs.GetFloat(key);
+                PlayerPrefs.SetFloat(key, newValue);
                 PlayerPrefs.Save();
 
                 return string.Format(Daddy.MSG, key + " : " + oldStr + " --> " + newValue);
