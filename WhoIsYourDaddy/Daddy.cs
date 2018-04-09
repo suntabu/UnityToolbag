@@ -174,20 +174,22 @@ namespace UnityToolbag.WhoIsYourDaddy
 
         void HandleLog(string condition, string stackTrace, LogType type)
         {
+            string logStr = IsLogStack ? condition + "\n" + stackTrace : condition;
+
             switch (type)
             {
                 case LogType.Error:
                 case LogType.Assert:
-                    PrintResult(string.Format(Daddy.ERROR, condition + "\n" + stackTrace));
+                    PrintResult(string.Format(Daddy.ERROR, logStr));
                     break;
                 case LogType.Warning:
-//                   PrintResult(string.Format(Daddy.ERROR,condition +"\n"+stackTrace));
+//                   PrintResult(string.Format(Daddy.ERROR,logStr));
                     break;
                 case LogType.Log:
-//                    PrintResult(string.Format(Daddy.MSG,condition +"\n"+stackTrace));
+//                    PrintResult(string.Format(Daddy.MSG,logStr));
                     break;
                 case LogType.Exception:
-                    PrintResult(string.Format(Daddy.ERROR, condition + "\n" + stackTrace));
+                    PrintResult(string.Format(Daddy.ERROR, logStr));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException("type", type, null);
@@ -196,24 +198,17 @@ namespace UnityToolbag.WhoIsYourDaddy
 
         void PrintResult(string res)
         {
-            if (result.Length >= 500)
+            if (result.Length >= 1500)
             {
                 result = string.Empty;
             }
 
-            result += "\n" + res + "\n";
+            result += "\n" + res;
         }
 
         void Update()
         {
             if (!ShowInEditor && Application.isEditor) return;
-
-            float InnerHeight = (Screen.height - 2 * Margin) * Height - 2 * padding;
-            int TotalRows = (int) (InnerHeight / styleText.lineHeight);
-
-            // Remove overflowing rows
-//            while (queue.Count > TotalRows)
-//                queue.Dequeue();
 
             CheckVibrate();
         }
@@ -221,6 +216,9 @@ namespace UnityToolbag.WhoIsYourDaddy
         void OnGUI()
         {
             if (!ShowInEditor && Application.isEditor || !isOpen) return;
+
+            styleText = GUI.skin.textArea;
+            styleText.alignment = TextAnchor.LowerLeft;
 
             float w = (Screen.width - 2 * Margin) * Width;
             float h = (Screen.height - 2 * Margin) * Height;
@@ -248,12 +246,11 @@ namespace UnityToolbag.WhoIsYourDaddy
                     y = Margin;
                     break;
             }
-            styleText.fontSize = ItemHeight / 2;
             float scrollHeight = _attributes.Count * ItemHeight * 3;
             scrollHeight = scrollHeight < h ? h : scrollHeight;
 
             GUILayout.BeginArea(new Rect(x, y, w, h), styleContainer);
-            Debug.Log("----> " + Event.current.type);
+//            Debug.Log("----> " + Event.current.type);
             scrollPos = GUI.BeginScrollView(new Rect(0, 0, w, h / 2), scrollPos,
                 new Rect(0, 0, w - 6 * padding, scrollHeight), false,
                 false);
@@ -295,6 +292,15 @@ namespace UnityToolbag.WhoIsYourDaddy
         private string[] inputStrs;
         string result = "";
         private bool m_isOpen = false;
+
+
+        private const string LogStackKey = "LogStackKey";
+
+        private bool IsLogStack
+        {
+            get { return PlayerPrefs.GetString(LogStackKey, "0") == "1"; }
+        }
+
         private Action<string> OnUnityLog;
 
         private bool isOpen
@@ -343,19 +349,6 @@ namespace UnityToolbag.WhoIsYourDaddy
                 },
                 wordWrap = true,
                 padding = new RectOffset(padding, padding, padding, padding)
-            };
-
-            styleText = new GUIStyle
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = FontSize,
-                normal =
-                {
-                    background = back,
-                    textColor = Color.white
-                },
-                wordWrap = true,
-                padding = new RectOffset(ItemHeight / 3, ItemHeight / 3, ItemHeight / 3, ItemHeight / 3)
             };
         }
 
@@ -480,9 +473,13 @@ namespace UnityToolbag.WhoIsYourDaddy
             try
             {
                 var strs = vals.Split(',');
-                var oldStr = PlayerPrefs.GetString(strs[0]);
-                PlayerPrefs.SetString(strs[0], strs[1]);
-                return string.Format(Daddy.MSG, strs[0] + " : " + oldStr + " --> " + strs[1]);
+                var key = strs[0];
+                var newValue = strs[1];
+                var oldStr = PlayerPrefs.GetString(key);
+                PlayerPrefs.SetString(key, newValue);
+                PlayerPrefs.Save();
+
+                return string.Format(Daddy.MSG, key + " : " + oldStr + " --> " + newValue);
             }
             catch (Exception e)
             {
