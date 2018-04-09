@@ -1,4 +1,4 @@
-#define daddy1
+#define daddy
 
 using System;
 using System.Collections.Generic;
@@ -53,7 +53,7 @@ namespace UnityToolbag.WhoIsYourDaddy
         [Range(0f, 01f)] public float BackgroundOpacity = 0.5f;
         public Color BackgroundColor = Color.black;
 
-        GUIStyle styleContainer, styleText;
+        GUIStyle styleContainer, styleButton, styleText;
         int padding = 5;
 
         private bool destroying = false;
@@ -159,7 +159,7 @@ namespace UnityToolbag.WhoIsYourDaddy
         {
             if (!ShowInEditor && Application.isEditor) return;
 
-
+            Application.logMessageReceived += HandleLog;
 #if UNITY_EDITOR
             isOpen = true;
 #endif
@@ -167,8 +167,41 @@ namespace UnityToolbag.WhoIsYourDaddy
 
         void OnDisable()
         {
+            Application.logMessageReceived -= HandleLog;
             // If destroyed because already exists, don't need to de-register callback
             if (destroying) return;
+        }
+
+        void HandleLog(string condition, string stackTrace, LogType type)
+        {
+            switch (type)
+            {
+                case LogType.Error:
+                case LogType.Assert:
+                    PrintResult(string.Format(Daddy.ERROR, condition + "\n" + stackTrace));
+                    break;
+                case LogType.Warning:
+//                   PrintResult(string.Format(Daddy.ERROR,condition +"\n"+stackTrace));
+                    break;
+                case LogType.Log:
+//                    PrintResult(string.Format(Daddy.MSG,condition +"\n"+stackTrace));
+                    break;
+                case LogType.Exception:
+                    PrintResult(string.Format(Daddy.ERROR, condition + "\n" + stackTrace));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("type", type, null);
+            }
+        }
+
+        void PrintResult(string res)
+        {
+            if (result.Length >= 500)
+            {
+                result = string.Empty;
+            }
+
+            result += "\n" + res + "\n";
         }
 
         void Update()
@@ -215,42 +248,41 @@ namespace UnityToolbag.WhoIsYourDaddy
                     y = Margin;
                     break;
             }
-
-            float scrollHeight = _attributes.Count * ItemHeight;
+            styleText.fontSize = ItemHeight / 2;
+            float scrollHeight = _attributes.Count * ItemHeight * 3;
             scrollHeight = scrollHeight < h ? h : scrollHeight;
 
             GUILayout.BeginArea(new Rect(x, y, w, h), styleContainer);
-
+            Debug.Log("----> " + Event.current.type);
             scrollPos = GUI.BeginScrollView(new Rect(0, 0, w, h / 2), scrollPos,
                 new Rect(0, 0, w - 6 * padding, scrollHeight), false,
                 false);
-
+            GUILayout.BeginArea(new Rect(0, 0, w, scrollHeight), styleContainer);
             for (var index = 0; index < _attributes.Count; index++)
             {
                 var attribute = _attributes[index];
 
 
                 var rectX = padding;
-                var rectY = (ItemHeight * 2 + padding) * index + padding;
-                var rectWidth = w - 4 * padding;
+                var rectY = (ItemHeight * 2 + padding * 6) * index + padding;
+                var rectWidth = w - 6 * padding;
                 var rectHeight = ItemHeight;
                 var rect = new Rect(rectX, rectY, rectWidth, rectHeight);
-                GUI.Label(rect, attribute.msg,styleText);
+                GUI.Label(rect, attribute.msg, styleContainer);
 
                 GUILayout.BeginHorizontal();
-                rect.width = w / 2f - 6 * padding;
-                rect.y += ItemHeight + 10 ;
-                inputStrs[index] = GUI.TextField(rect, inputStrs[index] ?? "");
+                rect.width = w / 2f - 4 * padding;
+                rect.y += ItemHeight + padding;
+                inputStrs[index] = GUI.TextField(rect, inputStrs[index] ?? "", styleContainer);
 
                 rect.x = rect.width + 3 * padding;
-                if (GUI.Button(rect, attribute.methodName,styleText))
+                if (GUI.Button(rect, "RUN", styleButton))
                 {
-                    result = attribute.CommandInvoker.Invoke(inputStrs[index]);
+                    PrintResult(attribute.CommandInvoker.Invoke(inputStrs[index]));
                 }
                 GUILayout.EndHorizontal();
-
-                GUILayout.Space(padding);
             }
+            GUILayout.EndArea();
             GUI.EndScrollView();
 
 
@@ -263,6 +295,7 @@ namespace UnityToolbag.WhoIsYourDaddy
         private string[] inputStrs;
         string result = "";
         private bool m_isOpen = false;
+        private Action<string> OnUnityLog;
 
         private bool isOpen
         {
@@ -287,17 +320,43 @@ namespace UnityToolbag.WhoIsYourDaddy
             back.SetPixel(0, 0, BackgroundColor);
             back.Apply();
 
-            styleContainer = new GUIStyle();
-            styleContainer.normal.background = back;
-            styleContainer.wordWrap = false;
-            styleContainer.padding = new RectOffset(padding, padding, padding, padding);
+            styleContainer = new GUIStyle
+            {
+                alignment = TextAnchor.MiddleCenter,
+                normal =
+                {
+                    textColor = Color.green,
+                    background = back
+                },
+                wordWrap = true,
+                padding = new RectOffset(padding, padding, padding, padding)
+            };
 
-            styleText = new GUIStyle();
-            styleText.fontSize = FontSize;
-            styleText.normal.background = back;
-            styleText.normal.textColor = Color.white;
-            styleText.padding = new RectOffset(ItemHeight/3,ItemHeight/3,ItemHeight/3,ItemHeight/3);
-            
+
+            styleButton = new GUIStyle
+            {
+                alignment = TextAnchor.MiddleCenter,
+                normal =
+                {
+                    textColor = Color.yellow,
+                    background = back
+                },
+                wordWrap = true,
+                padding = new RectOffset(padding, padding, padding, padding)
+            };
+
+            styleText = new GUIStyle
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = FontSize,
+                normal =
+                {
+                    background = back,
+                    textColor = Color.white
+                },
+                wordWrap = true,
+                padding = new RectOffset(ItemHeight / 3, ItemHeight / 3, ItemHeight / 3, ItemHeight / 3)
+            };
         }
 
         protected float m_checkValue = 0.8f;
@@ -381,6 +440,7 @@ namespace UnityToolbag.WhoIsYourDaddy
             {
                 var audiosources = GameObject.FindObjectsOfType<AudioSource>();
                 var sb = new StringBuilder();
+                sb.Append(string.Format(Daddy.MSG, "Audios:\n"));
                 foreach (var audiosource in audiosources)
                 {
                     if (audiosource.clip != null)
