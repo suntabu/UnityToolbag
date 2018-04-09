@@ -19,8 +19,8 @@ namespace UnityToolbag.WhoIsYourDaddy
         public const string DONE = ">> DONE";
         public const string ERROR = ">> ERROR : {0}";
         public const string MSG = ">> {0}";
-
-
+        public const string MSG_1 = "   {0}";
+        public const string MSG_2 = "     {0}";
         public static bool IsPersistent = true;
 
         private static Daddy instance;
@@ -449,8 +449,8 @@ namespace UnityToolbag.WhoIsYourDaddy
                 {
                     if (audiosource.clip != null)
                     {
-                        var msg = string.Format(Daddy.MSG,
-                            "[" + audiosource.clip.name + "] is " + (audiosource.isPlaying ? "" : " NOT ") +
+                        var msg = string.Format(Daddy.MSG_1,
+                            "[ " + audiosource.clip.name + " ] is " + (audiosource.isPlaying ? "" : " NOT ") +
                             " playing\n");
                         sb.Append(msg);
                     }
