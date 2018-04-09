@@ -251,7 +251,8 @@ namespace UnityToolbag.WhoIsYourDaddy
 
             GUILayout.BeginArea(new Rect(x, y, w, h), styleContainer);
 //            Debug.Log("----> " + Event.current.type);
-            scrollPos = GUI.BeginScrollView(new Rect(0, 0, w, h / 2), scrollPos,
+            var scrollViewRect = new Rect(0, 0, w, h / 2);
+            scrollPos = GUI.BeginScrollView(scrollViewRect, scrollPos,
                 new Rect(0, 0, w - 6 * padding, scrollHeight), false,
                 false);
             GUILayout.BeginArea(new Rect(0, 0, w, scrollHeight), styleContainer);
@@ -281,7 +282,17 @@ namespace UnityToolbag.WhoIsYourDaddy
             }
             GUILayout.EndArea();
             GUI.EndScrollView();
+/* Move by mouse drag */
 
+            // Check if the mouse is above our scrollview.
+            if (scrollViewRect.Contains(Event.current.mousePosition))
+            {
+                if (Event.current.type == EventType.mouseDrag)
+                {
+                    scrollPos += -Event.current.delta;
+                    Event.current.Use();
+                }
+            }
 
             GUI.TextArea(new Rect(0, h / 2, w, h / 2), result);
 
