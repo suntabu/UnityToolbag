@@ -136,5 +136,20 @@ namespace UnityToolbag.UnityObjects
             Path.DirectorySeparatorChar,
             Path.AltDirectorySeparatorChar
         };
+        
+        
+#if UNITY_EDITOR
+        public static string streamingAssetPath = "file://" + Application.streamingAssetsPath + "/";
+        public static string persistentDataPath = "file://" + Application.persistentDataPath + "/";
+        public static string temporaryCachePath = "file://" + Application.temporaryCachePath + "/";
+#elif UNITY_ANDROID
+		public static string streamingAssetPath = Application.streamingAssetsPath + "/";
+		public static string persistentDataPath = "file://" + Application.persistentDataPath + "/";
+		public static string temporaryCachePath = "file://" + Application.temporaryCachePath + "/";
+		#else
+		public static string streamingAssetPath = "file://" + Application.streamingAssetsPath + "/";
+		public static string persistentDataPath = "file://" + Application.persistentDataPath + "/";
+		public static string temporaryCachePath = "file://" + Application.temporaryCachePath + "/";
+		#endif
     }
 }
