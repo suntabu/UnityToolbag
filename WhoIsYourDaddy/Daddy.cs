@@ -289,7 +289,7 @@ namespace UnityToolbag.WhoIsYourDaddy
             {
                 if (Event.current.type == EventType.mouseDrag)
                 {
-                    scrollPos += -Event.current.delta;
+                    scrollPos += Event.current.delta;
                     Event.current.Use();
                 }
             }
