@@ -6,13 +6,22 @@ namespace UnityToolbag.CoordinateSystems.SphericalCoordinate
     public class SphericalCoordinateSystem
     {
 
-        public static Vector3 Convert(float radius, float theta, float phi)
+        public static SphericalCoordinate FromCartesian(Vector3 v)
+        {
+            return SphericalCoordinate.FromCartesian(v);
+        }
+        
+        
+        public static Vector3 ToCartesian(float radius, float theta, float phi)
         {
             var sc = new SphericalCoordinate(radius,phi,theta);
 
             return sc.ToCartesian();
         }
-        
+        public static Vector3 ToCartesian(SphericalCoordinate sc)
+        {
+            return sc.ToCartesian();
+        }
         
         public struct SphericalCoordinate
         {
@@ -30,16 +39,19 @@ namespace UnityToolbag.CoordinateSystems.SphericalCoordinate
             public float r
             {
                 get { return m_Radius; }
+                set { m_Radius = value; }
             }
 
             public float theta
             {
                 get { return m_Theta; }
+                set { m_Theta = value; }
             }
 
             public float phi
             {
                 get { return m_Phi; }
+                set { m_Phi = value; }
             }
 
 
@@ -83,10 +95,17 @@ namespace UnityToolbag.CoordinateSystems.SphericalCoordinate
 
                 r = Mathf.Sqrt(xzrSqr + v.y * v.y);
 
-                theta = Mathf.Acos(xzr / r);
+                theta = Mathf.Asin(xzr / r);
 
                 return new SphericalCoordinate(r, phi, theta);
             }
+
+            public override string ToString()
+            {
+                return string.Format("({0},{1},{2})",r,phi,theta);
+            }
         }
+
+        
     }
 }
