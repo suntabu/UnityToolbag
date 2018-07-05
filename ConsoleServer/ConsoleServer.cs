@@ -41,6 +41,7 @@ namespace UnityToolbag.ConsoleServer
         private static HttpListener listener;
         private static List<RouteAttribute> registeredRoutes;
         private static Queue<RequestContext> mainRequests = new Queue<RequestContext>();
+        internal static Dictionary<string, Action<string>> customActions = new Dictionary<string, Action<string>>();
 
         // List of supported files
         // FIXME add an api to register new types
@@ -110,6 +111,7 @@ namespace UnityToolbag.ConsoleServer
                         }
                     }
                 }
+
                 RegisterFileHandlers();
             }
         }
@@ -344,6 +346,11 @@ namespace UnityToolbag.ConsoleServer
                 mRunningThread = null;
             }
         }
+
+        public void AddCustomAction(string key, Action<string> action)
+        {
+            customActions[key] = action;
+        }
     }
 
     public class RequestContext
@@ -468,16 +475,13 @@ namespace UnityToolbag.ConsoleServer
     internal class Res
     {
         public static string INDEX_HTML =
-                "PCFET0NUWVBFIGh0bWw+CjxodG1sPgogIDxoZWFkPgogICAgPGxpbmsgcmVsPSJzdHlsZXNoZWV0IiB0eXBlPSJ0ZXh0L2NzcyIgaHJlZj0iY29uc29sZS5jc3MiPgogICAgPGxpbmsgcmVsPSJzaG9ydGN1dCBpY29uIiBocmVmPSJmYXZpY29uLmljbyIgdHlwZT0iaW1hZ2UveC1pbWFnZSI+CiAgICA8bGluayByZWw9Imljb24iIGhyZWY9ImZhdmljb24uaWNvbiIgdHlwZT0iaW1hZ2UveC1pbWFnZSI+CiAgICA8dGl0bGU+Q1VETFI8L3RpdGxlPgoKICAgIDxzY3JpcHQgc3JjPSJodHRwOi8vYWpheC5nb29nbGVhcGlzLmNvbS9hamF4L2xpYnMvanF1ZXJ5LzEuMTAuMi9qcXVlcnkubWluLmpzIj4KICAgIDwvc2NyaXB0PgoKICAgIDxzY3JpcHQ+CiAgICAgIHZhciBjb21tYW5kSW5kZXggPSAtMTsKICAgICAgdmFyIGhhc2ggPSBudWxsOwogICAgICB2YXIgaXNVcGRhdGVQYXVzZWQgPSBmYWxzZTsKCiAgICAgIGZ1bmN0aW9uIHNjcm9sbEJvdHRvbSgpIHsKICAgICAgICAkKCcjb3V0cHV0Jykuc2Nyb2xsVG9wKCQoJyNvdXRwdXQnKVswXS5zY3JvbGxIZWlnaHQpOwogICAgICB9CgogICAgICBmdW5jdGlvbiBydW5Db21tYW5kKGNvbW1hbmQpIHsKICAgICAgICBzY3JvbGxCb3R0b20oKTsKICAgICAgICAkLmdldCgiY29uc29sZS9ydW4/Y29tbWFuZD0iK2VuY29kZVVSSShlbmNvZGVVUklDb21wb25lbnQoY29tbWFuZCkpLCBmdW5jdGlvbiAoZGF0YSwgc3RhdHVzKSB7CiAgICAgICAgICB1cGRhdGVDb25zb2xlKGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgdXBkYXRlQ29tbWFuZChjb21tYW5kSW5kZXggLSAxKTsKICAgICAgICAgIH0pOwogICAgICAgIH0pOwogICAgICAgIHJlc2V0SW5wdXQoKTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gdXBkYXRlQ29uc29sZShjYWxsYmFjaykgewogICAgICAgIGlmIChpc1VwZGF0ZVBhdXNlZCkgcmV0dXJuOwogICAgICAgICQuZ2V0KCJjb25zb2xlL291dCIsIGZ1bmN0aW9uIChkYXRhLCBzdGF0dXMpIHsKICAgICAgICAgIC8vIENoZWNrIGlmIHdlIGFyZSBzY3JvbGxlZCB0byB0aGUgYm90dG9tIHRvIGZvcmNlIHNjcm9sbGluZyBvbiB1cGRhdGUKICAgICAgICAgIHZhciBvdXRwdXQgPSAkKCcjb3V0cHV0Jyk7CiAgICAgICAgICBzaG91bGRTY3JvbGwgPSBNYXRoLmFicygob3V0cHV0WzBdLnNjcm9sbEhlaWdodCAtIG91dHB1dC5zY3JvbGxUb3AoKSkgLSBvdXRwdXQuaW5uZXJIZWlnaHQoKSkgPCA1OwogICAgICAgICAgb3V0cHV0Lmh0bWwoU3RyaW5nKGRhdGEpLnJlcGxhY2UoL1xufFxyL2csICc8YnI+JykgKyAiPGJyPjxicj48YnI+Iik7CiAgICAgICAgICAvL2NvbnNvbGUubG9nKHNob3VsZFNjcm9sbCArICIgOj0gIiArIG91dHB1dFswXS5zY3JvbGxIZWlnaHQgKyAiIC0gIiArIG91dHB1dC5zY3JvbGxUb3AoKSArICIgKCIgKyBNYXRoLmFicygob3V0cHV0WzBdLnNjcm9sbEhlaWdodCAtIG91dHB1dC5zY3JvbGxUb3AoKSkgLSBvdXRwdXQuaW5uZXJIZWlnaHQoKSkgKyAiKSA9PSAiICsgb3V0cHV0LmlubmVySGVpZ2h0KCkpOwogICAgICAgICAgLy9jb25zb2xlLmxvZyhTdHJpbmcoZGF0YSkpOwogICAgICAgICAgaWYgKGNhbGxiYWNrKSBjYWxsYmFjaygpOwogICAgICAgICAgaWYgKHNob3VsZFNjcm9sbCkgc2Nyb2xsQm90dG9tKCk7CiAgICAgICAgfSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIHJlc2V0SW5wdXQoKSB7CiAgICAgICAgY29tbWFuZEluZGV4ID0gLTE7CiAgICAgICAgJCgiI2lucHV0IikudmFsKCIiKTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gcHJldmlvdXNDb21tYW5kKCkgewogICAgICAgIHVwZGF0ZUNvbW1hbmQoY29tbWFuZEluZGV4ICsgMSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIG5leHRDb21tYW5kKCkgewogICAgICAgIHVwZGF0ZUNvbW1hbmQoY29tbWFuZEluZGV4IC0gMSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIHVwZGF0ZUNvbW1hbmQoaW5kZXgpIHsKICAgICAgICAvLyBDaGVjayBpZiB3ZSBhcmUgYXQgdGhlIGRlZnVhbHQgaW5kZXggYW5kIGNsZWFyIHRoZSBpbnB1dAogICAgICAgIGlmIChpbmRleCA8IDApIHsKICAgICAgICAgIHJlc2V0SW5wdXQoKTsKICAgICAgICAgIHJldHVybjsKICAgICAgICB9CgogICAgICAgICQuZ2V0KCJjb25zb2xlL2NvbW1hbmRIaXN0b3J5P2luZGV4PSIraW5kZXgsIGZ1bmN0aW9uIChkYXRhLCBzdGF0dXMpIHsKICAgICAgICAgIGlmIChkYXRhKSB7CiAgICAgICAgICAgIGNvbW1hbmRJbmRleCA9IGluZGV4OwogICAgICAgICAgICAkKCIjaW5wdXQiKS52YWwoU3RyaW5nKGRhdGEpKTsKICAgICAgICAgIH0KICAgICAgICB9KTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gY29tcGxldGUoY29tbWFuZCkgewogICAgICAgICQuZ2V0KCJjb25zb2xlL2NvbXBsZXRlP2NvbW1hbmQ9Iitjb21tYW5kLCBmdW5jdGlvbiAoZGF0YSwgc3RhdHVzKSB7CiAgICAgICAgICBpZiAoZGF0YSkgewogICAgICAgICAgICAkKCIjaW5wdXQiKS52YWwoU3RyaW5nKGRhdGEpKTsKICAgICAgICAgIH0KICAgICAgICB9KTsKICAgICAgfQoKICAgICAgLy8gUG9sbCB0byB1cGRhdGUgdGhlIGNvbnNvbGUgb3V0cHV0CiAgICAgIHdpbmRvdy5zZXRJbnRlcnZhbChmdW5jdGlvbiAoKSB7IHVwZGF0ZUNvbnNvbGUobnVsbCkgfSwgNTAwKTsKICAgIDwvc2NyaXB0PgogIDwvaGVhZD4KCiAgPGJvZHkgY2xhc3M9ImNvbnNvbGUiPgogICAgPGJ1dHRvbiBpZD0icGF1c2VVcGRhdGVzIj5QYXVzZSBVcGRhdGVzPC9idXR0b24+CiAgICA8ZGl2IGlkPSJvdXRwdXQiIGNsYXNzPSJjb25zb2xlIj48L2Rpdj4KICAgIDx0ZXh0YXJlYSBpZD0iaW5wdXQiIGNsYXNzPSJjb25zb2xlIiBhdXRvZm9jdXMgcm93cz0iMSI+PC90ZXh0YXJlYT4KCiAgICA8c2NyaXB0PgogICAgICAvLyBzZXR1cCBvdXIgcGF1c2UgdXBkYXRlcyBidXR0b24KICAgICAgJCgiI3BhdXNlVXBkYXRlcyIpLmNsaWNrKGZ1bmN0aW9uKCkgewogICAgICAgIC8vY29uc29sZS5sb2coInBhdXNlIHVwZGF0ZXMgIiArIGlzVXBkYXRlUGF1c2VkKTsKICAgICAgICBpc1VwZGF0ZVBhdXNlZCA9ICFpc1VwZGF0ZVBhdXNlZDsKICAgICAgICAkKCIjcGF1c2VVcGRhdGVzIikuaHRtbChpc1VwZGF0ZVBhdXNlZCA/ICJSZXN1bWUgVXBkYXRlcyIgOiAiUGF1c2UgVXBkYXRlcyIpOwogICAgICB9KTsKCiAgICAgICQoIiNpbnB1dCIpLmtleWRvd24oIGZ1bmN0aW9uIChlKSB7CiAgICAgICAgaWYgKGUua2V5Q29kZSA9PSAxMykgeyAvLyBFbnRlcgogICAgICAgICAgLy8gd2UgZG9uJ3Qgd2FudCBhIGxpbmUgYnJlYWsgaW4gdGhlIGNvbnNvbGUKICAgICAgICAgIGUucHJldmVudERlZmF1bHQoKTsKICAgICAgICAgIHJ1bkNvbW1hbmQoJCgiI2lucHV0IikudmFsKCkpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDM4KSB7IC8vIFVwCiAgICAgICAgICBwcmV2aW91c0NvbW1hbmQoKTsKICAgICAgICB9IGVsc2UgaWYgKGUua2V5Q29kZSA9PSA0MCkgeyAvLyBEb3duCiAgICAgICAgICBuZXh0Q29tbWFuZCgpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDI3KSB7IC8vIEVzY2FwZQogICAgICAgICAgcmVzZXRJbnB1dCgpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDkpIHsgLy8gVGFiCiAgICAgICAgICBlLnByZXZlbnREZWZhdWx0KCk7CiAgICAgICAgICBjb21wbGV0ZSgkKCIjaW5wdXQiKS52YWwoKSk7CiAgICAgICAgfQogICAgICB9KTsKICAgIDwvc2NyaXB0PgogIDwvYm9keT4KCjwvaHRtbD4="
-            ;
+            "PCFET0NUWVBFIGh0bWw+CjxodG1sPgogIDxoZWFkPgogICAgPGxpbmsgcmVsPSJzdHlsZXNoZWV0IiB0eXBlPSJ0ZXh0L2NzcyIgaHJlZj0iY29uc29sZS5jc3MiPgogICAgPGxpbmsgcmVsPSJzaG9ydGN1dCBpY29uIiBocmVmPSJmYXZpY29uLmljbyIgdHlwZT0iaW1hZ2UveC1pbWFnZSI+CiAgICA8bGluayByZWw9Imljb24iIGhyZWY9ImZhdmljb24uaWNvbiIgdHlwZT0iaW1hZ2UveC1pbWFnZSI+CiAgICA8dGl0bGU+Q1VETFI8L3RpdGxlPgoKICAgIDxzY3JpcHQgc3JjPSJodHRwOi8vYWpheC5nb29nbGVhcGlzLmNvbS9hamF4L2xpYnMvanF1ZXJ5LzEuMTAuMi9qcXVlcnkubWluLmpzIj4KICAgIDwvc2NyaXB0PgoKICAgIDxzY3JpcHQ+CiAgICAgIHZhciBjb21tYW5kSW5kZXggPSAtMTsKICAgICAgdmFyIGhhc2ggPSBudWxsOwogICAgICB2YXIgaXNVcGRhdGVQYXVzZWQgPSBmYWxzZTsKCiAgICAgIGZ1bmN0aW9uIHNjcm9sbEJvdHRvbSgpIHsKICAgICAgICAkKCcjb3V0cHV0Jykuc2Nyb2xsVG9wKCQoJyNvdXRwdXQnKVswXS5zY3JvbGxIZWlnaHQpOwogICAgICB9CgogICAgICBmdW5jdGlvbiBydW5Db21tYW5kKGNvbW1hbmQpIHsKICAgICAgICBzY3JvbGxCb3R0b20oKTsKICAgICAgICAkLmdldCgiY29uc29sZS9ydW4/Y29tbWFuZD0iK2VuY29kZVVSSShlbmNvZGVVUklDb21wb25lbnQoY29tbWFuZCkpLCBmdW5jdGlvbiAoZGF0YSwgc3RhdHVzKSB7CiAgICAgICAgICB1cGRhdGVDb25zb2xlKGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgdXBkYXRlQ29tbWFuZChjb21tYW5kSW5kZXggLSAxKTsKICAgICAgICAgIH0pOwogICAgICAgIH0pOwogICAgICAgIHJlc2V0SW5wdXQoKTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gdXBkYXRlQ29uc29sZShjYWxsYmFjaykgewogICAgICAgIGlmIChpc1VwZGF0ZVBhdXNlZCkgcmV0dXJuOwogICAgICAgICQuZ2V0KCJjb25zb2xlL291dCIsIGZ1bmN0aW9uIChkYXRhLCBzdGF0dXMpIHsKICAgICAgICAgIC8vIENoZWNrIGlmIHdlIGFyZSBzY3JvbGxlZCB0byB0aGUgYm90dG9tIHRvIGZvcmNlIHNjcm9sbGluZyBvbiB1cGRhdGUKICAgICAgICAgIHZhciBvdXRwdXQgPSAkKCcjb3V0cHV0Jyk7CiAgICAgICAgICBzaG91bGRTY3JvbGwgPSBNYXRoLmFicygob3V0cHV0WzBdLnNjcm9sbEhlaWdodCAtIG91dHB1dC5zY3JvbGxUb3AoKSkgLSBvdXRwdXQuaW5uZXJIZWlnaHQoKSkgPCA1OwogICAgICAgICAgb3V0cHV0Lmh0bWwoU3RyaW5nKGRhdGEpLnJlcGxhY2UoL1xufFxyL2csICc8YnI+JykgKyAiPGJyPjxicj48YnI+Iik7CiAgICAgICAgICAvL2NvbnNvbGUubG9nKHNob3VsZFNjcm9sbCArICIgOj0gIiArIG91dHB1dFswXS5zY3JvbGxIZWlnaHQgKyAiIC0gIiArIG91dHB1dC5zY3JvbGxUb3AoKSArICIgKCIgKyBNYXRoLmFicygob3V0cHV0WzBdLnNjcm9sbEhlaWdodCAtIG91dHB1dC5zY3JvbGxUb3AoKSkgLSBvdXRwdXQuaW5uZXJIZWlnaHQoKSkgKyAiKSA9PSAiICsgb3V0cHV0LmlubmVySGVpZ2h0KCkpOwogICAgICAgICAgLy9jb25zb2xlLmxvZyhTdHJpbmcoZGF0YSkpOwogICAgICAgICAgaWYgKGNhbGxiYWNrKSBjYWxsYmFjaygpOwogICAgICAgICAgaWYgKHNob3VsZFNjcm9sbCkgc2Nyb2xsQm90dG9tKCk7CiAgICAgICAgfSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIHJlc2V0SW5wdXQoKSB7CiAgICAgICAgY29tbWFuZEluZGV4ID0gLTE7CiAgICAgICAgJCgiI2lucHV0IikudmFsKCIiKTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gcHJldmlvdXNDb21tYW5kKCkgewogICAgICAgIHVwZGF0ZUNvbW1hbmQoY29tbWFuZEluZGV4ICsgMSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIG5leHRDb21tYW5kKCkgewogICAgICAgIHVwZGF0ZUNvbW1hbmQoY29tbWFuZEluZGV4IC0gMSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIHVwZGF0ZUNvbW1hbmQoaW5kZXgpIHsKICAgICAgICAvLyBDaGVjayBpZiB3ZSBhcmUgYXQgdGhlIGRlZnVhbHQgaW5kZXggYW5kIGNsZWFyIHRoZSBpbnB1dAogICAgICAgIGlmIChpbmRleCA8IDApIHsKICAgICAgICAgIHJlc2V0SW5wdXQoKTsKICAgICAgICAgIHJldHVybjsKICAgICAgICB9CgogICAgICAgICQuZ2V0KCJjb25zb2xlL2NvbW1hbmRIaXN0b3J5P2luZGV4PSIraW5kZXgsIGZ1bmN0aW9uIChkYXRhLCBzdGF0dXMpIHsKICAgICAgICAgIGlmIChkYXRhKSB7CiAgICAgICAgICAgIGNvbW1hbmRJbmRleCA9IGluZGV4OwogICAgICAgICAgICAkKCIjaW5wdXQiKS52YWwoU3RyaW5nKGRhdGEpKTsKICAgICAgICAgIH0KICAgICAgICB9KTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gY29tcGxldGUoY29tbWFuZCkgewogICAgICAgICQuZ2V0KCJjb25zb2xlL2NvbXBsZXRlP2NvbW1hbmQ9Iitjb21tYW5kLCBmdW5jdGlvbiAoZGF0YSwgc3RhdHVzKSB7CiAgICAgICAgICBpZiAoZGF0YSkgewogICAgICAgICAgICAkKCIjaW5wdXQiKS52YWwoU3RyaW5nKGRhdGEpKTsKICAgICAgICAgIH0KICAgICAgICB9KTsKICAgICAgfQoKICAgICAgLy8gUG9sbCB0byB1cGRhdGUgdGhlIGNvbnNvbGUgb3V0cHV0CiAgICAgIHdpbmRvdy5zZXRJbnRlcnZhbChmdW5jdGlvbiAoKSB7IHVwZGF0ZUNvbnNvbGUobnVsbCkgfSwgNTAwKTsKICAgIDwvc2NyaXB0PgogIDwvaGVhZD4KCiAgPGJvZHkgY2xhc3M9ImNvbnNvbGUiPgogICAgPGJ1dHRvbiBpZD0icGF1c2VVcGRhdGVzIj5QYXVzZSBVcGRhdGVzPC9idXR0b24+CiAgICA8ZGl2IGlkPSJvdXRwdXQiIGNsYXNzPSJjb25zb2xlIj48L2Rpdj4KICAgIDx0ZXh0YXJlYSBpZD0iaW5wdXQiIGNsYXNzPSJjb25zb2xlIiBhdXRvZm9jdXMgcm93cz0iMSI+PC90ZXh0YXJlYT4KCiAgICA8c2NyaXB0PgogICAgICAvLyBzZXR1cCBvdXIgcGF1c2UgdXBkYXRlcyBidXR0b24KICAgICAgJCgiI3BhdXNlVXBkYXRlcyIpLmNsaWNrKGZ1bmN0aW9uKCkgewogICAgICAgIC8vY29uc29sZS5sb2coInBhdXNlIHVwZGF0ZXMgIiArIGlzVXBkYXRlUGF1c2VkKTsKICAgICAgICBpc1VwZGF0ZVBhdXNlZCA9ICFpc1VwZGF0ZVBhdXNlZDsKICAgICAgICAkKCIjcGF1c2VVcGRhdGVzIikuaHRtbChpc1VwZGF0ZVBhdXNlZCA/ICJSZXN1bWUgVXBkYXRlcyIgOiAiUGF1c2UgVXBkYXRlcyIpOwogICAgICB9KTsKCiAgICAgICQoIiNpbnB1dCIpLmtleWRvd24oIGZ1bmN0aW9uIChlKSB7CiAgICAgICAgaWYgKGUua2V5Q29kZSA9PSAxMykgeyAvLyBFbnRlcgogICAgICAgICAgLy8gd2UgZG9uJ3Qgd2FudCBhIGxpbmUgYnJlYWsgaW4gdGhlIGNvbnNvbGUKICAgICAgICAgIGUucHJldmVudERlZmF1bHQoKTsKICAgICAgICAgIHJ1bkNvbW1hbmQoJCgiI2lucHV0IikudmFsKCkpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDM4KSB7IC8vIFVwCiAgICAgICAgICBwcmV2aW91c0NvbW1hbmQoKTsKICAgICAgICB9IGVsc2UgaWYgKGUua2V5Q29kZSA9PSA0MCkgeyAvLyBEb3duCiAgICAgICAgICBuZXh0Q29tbWFuZCgpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDI3KSB7IC8vIEVzY2FwZQogICAgICAgICAgcmVzZXRJbnB1dCgpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDkpIHsgLy8gVGFiCiAgICAgICAgICBlLnByZXZlbnREZWZhdWx0KCk7CiAgICAgICAgICBjb21wbGV0ZSgkKCIjaW5wdXQiKS52YWwoKSk7CiAgICAgICAgfQogICAgICB9KTsKICAgIDwvc2NyaXB0PgogIDwvYm9keT4KCjwvaHRtbD4=";
 
         public static string INDEX_CSS =
-                "aHRtbCwgYm9keSB7CgloZWlnaHQ6OTklOwp9Cgp0ZXh0YXJlYSB7CglyZXNpemU6bm9uZTsKfQoKYm9keS5jb25zb2xlIHsKICBiYWNrZ3JvdW5kLWNvbG9yOmJsYWNrOwp9CgpkaXYuY29uc29sZSB7CiAgaGVpZ2h0OjEwMCU7CiAgd2lkdGg6MTAwJTsKICBiYWNrZ3JvdW5kLWNvbG9yOiMzODM4Mzg7CiAgY29sb3I6I0YwRjBGMDsKICBmb250LXNpemU6MTRweDsKICBmb250LWZhbWlseTptb25vc3BhY2U7CiAgb3ZlcmZsb3cteTphdXRvOwogIG92ZXJmbG93LXg6YXV0bzsKICB3aGl0ZS1zcGFjZTpub3JtYWw7CiAgd29yZC13cmFwOmJyZWFrLXdvcmQ7Cn0KCnRleHRhcmVhLmNvbnNvbGUgewogIHdpZHRoOjEwMCU7CiAgYmFja2dyb3VuZC1jb2xvcjojMzgzODM4OwogIGNvbG9yOiNGMEYwRjA7CiAgZm9udC1zaXplOjE0cHg7CiAgZm9udC1mYW1pbHk6bW9ub3NwYWNlOwogIHBvc2l0aW9uOmZpeGVkOwogIGJvdHRvbTowJTsKfQoKc3Bhbi5XYXJuaW5nIHsKCWNvbG9yOiNmNGU1NDI7Cn0KCnNwYW4uQXNzZXJ0IHsKCWNvbG9yOiNmNGU1NDI7Cn0KCnNwYW4uRXJyb3IgewoJY29sb3I6I2ZmMDAwMDsKfQoKc3Bhbi5FeGNlcHRpb24gewoJY29sb3I6I2ZmMDAwMDsKfQoKc3Bhbi5IZWxwIHsKCWNvbG9yOiMxNmYzZmY7Cn0KCmJ1dHRvbiNwYXVzZVVwZGF0ZXMgewogIHdpZHRoOjE1MHB4OwogIGhlaWdodDo0MHB4OwogIHBvc2l0aW9uOmZpeGVkOwogIGZsb2F0OnJpZ2h0OwogIG1hcmdpbi1yaWdodDo1MHB4OwogIG1hcmdpbi10b3A6MTBweDsKICByaWdodDowcHg7CiAgb3BhY2l0eTouNTsKfQ=="
-            ;
+            "aHRtbCwgYm9keSB7CgloZWlnaHQ6OTklOwp9Cgp0ZXh0YXJlYSB7CglyZXNpemU6bm9uZTsKfQoKYm9keS5jb25zb2xlIHsKICBiYWNrZ3JvdW5kLWNvbG9yOmJsYWNrOwp9CgpkaXYuY29uc29sZSB7CiAgaGVpZ2h0OjEwMCU7CiAgd2lkdGg6MTAwJTsKICBiYWNrZ3JvdW5kLWNvbG9yOiMzODM4Mzg7CiAgY29sb3I6I0YwRjBGMDsKICBmb250LXNpemU6MTRweDsKICBmb250LWZhbWlseTptb25vc3BhY2U7CiAgb3ZlcmZsb3cteTphdXRvOwogIG92ZXJmbG93LXg6YXV0bzsKICB3aGl0ZS1zcGFjZTpub3JtYWw7CiAgd29yZC13cmFwOmJyZWFrLXdvcmQ7Cn0KCnRleHRhcmVhLmNvbnNvbGUgewogIHdpZHRoOjEwMCU7CiAgYmFja2dyb3VuZC1jb2xvcjojMzgzODM4OwogIGNvbG9yOiNGMEYwRjA7CiAgZm9udC1zaXplOjE0cHg7CiAgZm9udC1mYW1pbHk6bW9ub3NwYWNlOwogIHBvc2l0aW9uOmZpeGVkOwogIGJvdHRvbTowJTsKfQoKc3Bhbi5XYXJuaW5nIHsKCWNvbG9yOiNmNGU1NDI7Cn0KCnNwYW4uQXNzZXJ0IHsKCWNvbG9yOiNmNGU1NDI7Cn0KCnNwYW4uRXJyb3IgewoJY29sb3I6I2ZmMDAwMDsKfQoKc3Bhbi5FeGNlcHRpb24gewoJY29sb3I6I2ZmMDAwMDsKfQoKc3Bhbi5IZWxwIHsKCWNvbG9yOiMxNmYzZmY7Cn0KCmJ1dHRvbiNwYXVzZVVwZGF0ZXMgewogIHdpZHRoOjE1MHB4OwogIGhlaWdodDo0MHB4OwogIHBvc2l0aW9uOmZpeGVkOwogIGZsb2F0OnJpZ2h0OwogIG1hcmdpbi1yaWdodDo1MHB4OwogIG1hcmdpbi10b3A6MTBweDsKICByaWdodDowcHg7CiAgb3BhY2l0eTouNTsKfQ==";
 
         public static string INDEX_ICO =
-                "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABuklEQVQ4jaWTPUhbURiGn5t7vJJrUFuTXNKIVgsVQyQoikjF0g5VQToKQkXcXLq4CRUHwa1bJzsUCi3+tIsOoohCB8GCSBVCoZXrX9WkNUbIj5GbpINybUgTUvrBWc4573Pe7+U70lZzXRpAODUkWVBIpZMGRjAAgAWgvPspslUtSKx6faj1Xip6nwEghFMj7t8msacXBDBcboqcGjH/NsKpISRZkKi9z2XZrYIANk8DhEOU+Jo4X1lCAIS2Nokf/aB58i3HC/M4Hjzk68sJLo6PsgDFdgdl6k27GakFlheJ7elIHY/QHj+h3NdonkW+f2Nn8hXG6S/CKxsUudzAdYgmzWajqm8A/c1rSj1eXF095rrd0vrXljIcnG18Jrqrc2/oOUgS+7PvUSursLe158wkw0H4yyZ3+wext7VzMPMO//gohx+nc4qzAAAWRUGS5byinC38WZ4X49QNjyDU/AOWe3ZTKUinMKIRjGiEi8DJvwH8E2MEV5fzvg4g0kkDi1Jsbhx8mOLnp1Wi+k5eoUVRSMZjCCMYwNHZc+X6MkFofc28ZL3jzhIqFQ5EdQ1WTwPhhTmk//3OvwGiHYnCU40aDAAAAABJRU5ErkJggg=="
-            ;
+            "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABuklEQVQ4jaWTPUhbURiGn5t7vJJrUFuTXNKIVgsVQyQoikjF0g5VQToKQkXcXLq4CRUHwa1bJzsUCi3+tIsOoohCB8GCSBVCoZXrX9WkNUbIj5GbpINybUgTUvrBWc4573Pe7+U70lZzXRpAODUkWVBIpZMGRjAAgAWgvPspslUtSKx6faj1Xip6nwEghFMj7t8msacXBDBcboqcGjH/NsKpISRZkKi9z2XZrYIANk8DhEOU+Jo4X1lCAIS2Nokf/aB58i3HC/M4Hjzk68sJLo6PsgDFdgdl6k27GakFlheJ7elIHY/QHj+h3NdonkW+f2Nn8hXG6S/CKxsUudzAdYgmzWajqm8A/c1rSj1eXF095rrd0vrXljIcnG18Jrqrc2/oOUgS+7PvUSursLe158wkw0H4yyZ3+wext7VzMPMO//gohx+nc4qzAAAWRUGS5byinC38WZ4X49QNjyDU/AOWe3ZTKUinMKIRjGiEi8DJvwH8E2MEV5fzvg4g0kkDi1Jsbhx8mOLnp1Wi+k5eoUVRSMZjCCMYwNHZc+X6MkFofc28ZL3jzhIqFQ5EdQ1WTwPhhTmk//3OvwGiHYnCU40aDAAAAABJRU5ErkJggg==";
     }
 
 
@@ -490,6 +494,11 @@ namespace UnityToolbag.ConsoleServer
 
     public class Console
     {
+        internal static int CurrentState;
+
+        internal const int STATE_LUA = 1;
+        internal const int STATE_NONE = 0;
+
         // Max number of lines in the console output
         const int MAX_LINES = 100;
 
@@ -595,6 +604,40 @@ namespace UnityToolbag.ConsoleServer
             Log("<span class='Help'>" + help + "</span>");
         }
 
+        [Command("lua", "enter lua state")]
+        public static void EnterLua(string[] args)
+        {
+            CurrentState = STATE_LUA;
+            var key = "EnterLua";
+            if (!ConsoleServer.customActions.ContainsKey(key))
+            {
+                Log("Lua callback not registered");
+                return;
+            }
+
+            Action<string> action = ConsoleServer.customActions[key];
+
+
+            if (args.Length > 0)
+            {
+                if (args[0].ToLower() == "exit")
+                {
+                    CurrentState = STATE_NONE;
+                    Log(">>>>> exit lua <<<<<");
+                }
+                else
+                {
+                    Log("DOString: " + args[0]);
+                    action(args[0]);
+                }
+            }
+            else
+            {
+                Log(">>>>> lua <<<<<");
+            }
+        }
+
+
         /* Find command based on partial string */
         public static string Complete(string partialCommand)
         {
@@ -659,6 +702,7 @@ namespace UnityToolbag.ConsoleServer
                 {
                     continue;
                 }
+
                 foreach (Type type in assembly.GetTypes())
                 {
                     // FIXME add support for non-static methods (FindObjectByType?)
@@ -793,6 +837,7 @@ namespace UnityToolbag.ConsoleServer
             {
                 m_subcommands[token] = new CommandTree();
             }
+
             m_subcommands[token]._add(commands, command_index + 1, cmd);
         }
 
@@ -836,6 +881,7 @@ namespace UnityToolbag.ConsoleServer
                 {
                     Console.Log(result + " " + key);
                 }
+
                 return result + " ";
             }
             else if (partialCommand.Length == (index + 1))
@@ -871,6 +917,7 @@ namespace UnityToolbag.ConsoleServer
                         Console.Log(result + match);
                     }
                 }
+
                 return result + partial;
             }
 
@@ -879,21 +926,31 @@ namespace UnityToolbag.ConsoleServer
             {
                 return result;
             }
+
             result += token + " ";
             return m_subcommands[token]._complete(partialCommand, index + 1, result);
         }
 
         public void Run(string commandStr)
         {
-            // Split user input on spaces ignoring anything in qoutes
-            Regex regex = new Regex(@""".*?""|[^\s]+");
-            MatchCollection matches = regex.Matches(commandStr);
-            string[] tokens = new string[matches.Count];
-            for (int i = 0; i < tokens.Length; ++i)
+            if (Console.CurrentState == Console.STATE_LUA)
             {
-                tokens[i] = matches[i].Value.Replace("\"", "");
+                _run(new string[] {"lua", commandStr.Replace("lua ", "")}, 0);
             }
-            _run(tokens, 0);
+            else
+            {
+                // Split user input on spaces ignoring anything in qoutes
+                Regex regex = new Regex(@""".*?""|[^\s]+");
+                MatchCollection matches = regex.Matches(commandStr);
+                string[] tokens = new string[matches.Count];
+                for (int i = 0; i < tokens.Length; ++i)
+                {
+                    tokens[i] = matches[i].Value.Replace("\"", "");
+                    Debug.Log(tokens[i]);
+                }
+
+                _run(tokens, 0);
+            }
         }
 
         static string[] emptyArgs = new string[0] { };
@@ -912,6 +969,7 @@ namespace UnityToolbag.ConsoleServer
                 RunCommand(commands.Skip(index).ToArray());
                 return;
             }
+
             m_subcommands[token]._run(commands, index + 1);
         }
 
