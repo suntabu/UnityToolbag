@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using UnityEngine;
@@ -64,6 +65,7 @@ namespace UnityToolbag.ConsoleServer
             {"/index.html", Res.INDEX_HTML},
             {"/console.css", Res.INDEX_CSS},
             {"/favicon.ico", Res.INDEX_ICO},
+            {"/upload.html", Res.UPLOAD_HTML}
         };
 
         private void RegisterRoutes()
@@ -300,7 +302,10 @@ namespace UnityToolbag.ConsoleServer
             }
             else
             {
-                Stop();
+                if (listener != null)
+                {
+                    Stop();
+                }
             }
 
             mPort = port;
@@ -333,26 +338,34 @@ namespace UnityToolbag.ConsoleServer
 
         public void Stop()
         {
-            if (mRegisterLogCallback)
+            try
             {
+                Debug.Log("Stop listening at :" + mPort);
+                if (mRegisterLogCallback)
+                {
 #if UNITY_5_3_OR_NEWER
-                Application.logMessageReceived -= Console.LogCallback;
+                    Application.logMessageReceived -= Console.LogCallback;
 #else
         Application.RegisterLogCallback(null);
 #endif
-            }
+                }
 
-            if (listener != null)
-            {
-                listener.Stop();
-                listener.Close();
-                listener = null;
-            }
+                if (listener != null)
+                {
+                    listener.Stop();
+                    listener.Close();
+                    listener = null;
+                }
 
-            if (mRunningThread != null)
+                if (mRunningThread != null)
+                {
+                    mRunningThread.Abort();
+                    mRunningThread = null;
+                }
+            }
+            catch (Exception e)
             {
-                mRunningThread.Abort();
-                mRunningThread = null;
+                Debug.Log(e.Message + "\n" + e.StackTrace);
             }
         }
 
@@ -491,6 +504,9 @@ namespace UnityToolbag.ConsoleServer
 
         public static string INDEX_ICO =
             "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABuklEQVQ4jaWTPUhbURiGn5t7vJJrUFuTXNKIVgsVQyQoikjF0g5VQToKQkXcXLq4CRUHwa1bJzsUCi3+tIsOoohCB8GCSBVCoZXrX9WkNUbIj5GbpINybUgTUvrBWc4573Pe7+U70lZzXRpAODUkWVBIpZMGRjAAgAWgvPspslUtSKx6faj1Xip6nwEghFMj7t8msacXBDBcboqcGjH/NsKpISRZkKi9z2XZrYIANk8DhEOU+Jo4X1lCAIS2Nokf/aB58i3HC/M4Hjzk68sJLo6PsgDFdgdl6k27GakFlheJ7elIHY/QHj+h3NdonkW+f2Nn8hXG6S/CKxsUudzAdYgmzWajqm8A/c1rSj1eXF095rrd0vrXljIcnG18Jrqrc2/oOUgS+7PvUSursLe158wkw0H4yyZ3+wext7VzMPMO//gohx+nc4qzAAAWRUGS5byinC38WZ4X49QNjyDU/AOWe3ZTKUinMKIRjGiEi8DJvwH8E2MEV5fzvg4g0kkDi1Jsbhx8mOLnp1Wi+k5eoUVRSMZjCCMYwNHZc+X6MkFofc28ZL3jzhIqFQ5EdQ1WTwPhhTmk//3OvwGiHYnCU40aDAAAAABJRU5ErkJggg==";
+
+        public static string UPLOAD_HTML =
+            "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJVVEYtOCI+CiAgICA8dGl0bGU+VXBsb2FkPC90aXRsZT4KICAgIDxzY3JpcHQ+CiAgICAgICAgdmFyIG9uVXBsb2FkID0gZnVuY3Rpb24gKCkgewogICAgICAgICAgICB2YXIgZmlsZXMgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZmlsZXMnKS5maWxlczsgLy9maWxlc+aYr+aWh+S7tumAieaLqeahhumAieaLqeeahOaWh+S7tuWvueixoeaVsOe7hAoKICAgICAgICAgICAgaWYgKGZpbGVzLmxlbmd0aCA9PSAwKSB7CiAgICAgICAgICAgICAgICBhbGVydCgibm8gZmlsZXMgbmVlZCB1cGxvYWQiKTsKICAgICAgICAgICAgICAgIHJldHVybjsKICAgICAgICAgICAgfQoKICAgICAgICAgICAgdmFyIGZvcm0gPSBuZXcgRm9ybURhdGEoKSwKICAgICAgICAgICAgICAgIHVybCA9ICJodHRwOi8vIiArIHdpbmRvdy5sb2NhdGlvbi5ob3N0ICsgIi91cGxvYWQiLCAvL+acjeWKoeWZqOS4iuS8oOWcsOWdgAogICAgICAgICAgICAgICAgZmlsZSA9IGZpbGVzWzBdOwogICAgICAgICAgICBmb3JtLmFwcGVuZCgnZmlsZScsIGZpbGUpOwogICAgICAgICAgICBmb3JtLmFwcGVuZCgnZmlsZW5hbWUnLCBmaWxlLm5hbWUpOwoKICAgICAgICAgICAgdmFyIHhociA9IG5ldyBYTUxIdHRwUmVxdWVzdCgpOwogICAgICAgICAgICB4aHIub3BlbigicG9zdCIsIHVybCwgdHJ1ZSk7Ci8v5LiK5Lyg6L+b5bqm5LqL5Lu2CiAgICAgICAgICAgIHhoci51cGxvYWQuYWRkRXZlbnRMaXN0ZW5lcigicHJvZ3Jlc3MiLCBmdW5jdGlvbiAocmVzdWx0KSB7CiAgICAgICAgICAgICAgICBpZiAocmVzdWx0Lmxlbmd0aENvbXB1dGFibGUpIHsKICAgICAgICAgICAgICAgICAgICAvL+S4iuS8oOi/m+W6pgogICAgICAgICAgICAgICAgICAgIHZhciBwZXJjZW50ID0gKHJlc3VsdC5sb2FkZWQgLyByZXN1bHQudG90YWwgKiAxMDApLnRvRml4ZWQoMik7CiAgICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2dyZXNzTnVtYmVyJykuaW5uZXJIVE1MID0gcGVyY2VudCArICclJzsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfSwgZmFsc2UpOwoKICAgICAgICAgICAgeGhyLmFkZEV2ZW50TGlzdGVuZXIoInJlYWR5c3RhdGVjaGFuZ2UiLCBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgICAgICB2YXIgcmVzdWx0ID0geGhyOwogICAgICAgICAgICAgICAgaWYgKHJlc3VsdC5zdGF0dXMgIT0gMjAwKSB7IC8vZXJyb3IKICAgICAgICAgICAgICAgICAgICBjb25zb2xlLmxvZygn5LiK5Lyg5aSx6LSlJywgcmVzdWx0LnN0YXR1cywgcmVzdWx0LnN0YXR1c1RleHQsIHJlc3VsdC5yZXNwb25zZSk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICBlbHNlIGlmIChyZXN1bHQucmVhZHlTdGF0ZSA9PSA0KSB7IC8vZmluaXNoZWQKICAgICAgICAgICAgICAgICAgICBjb25zb2xlLmxvZygn5LiK5Lyg5oiQ5YqfJywgcmVzdWx0KTsKICAgICAgICAgICAgICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncHJvZ3Jlc3NOdW1iZXInKS5pbm5lckhUTUwgPSAnMTAwJSc7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0pOwogICAgICAgICAgICB4aHIuc2VuZChmb3JtKTsgLy/lvIDlp4vkuIrkvKAKCiAgICAgICAgfQoKICAgIDwvc2NyaXB0Pgo8L2hlYWQ+Cjxib2R5Pgo8aW5wdXQgdHlwZT0iZmlsZSIgbmFtZT0iZmlsZVBpY2tlciIgaWQ9ImZpbGVzIi8+CiZuYnNwOzxsYWJlbCBpZD0icHJvZ3Jlc3NOdW1iZXIiPjwvbGFiZWw+CjxidXR0b24gdHlwZT0iYnV0dG9uIiBvbmNsaWNrPSJvblVwbG9hZCgpIj5VcGxvYWQgRmlsZXMhPC9idXR0b24+Cgo8L2JvZHk+CjwvaHRtbD4=";
     }
 
 
@@ -789,6 +805,61 @@ namespace UnityToolbag.ConsoleServer
             context.Response.WriteString(Console.Output());
         }
 
+        [Route("^/upload$", "POST", true)]
+        public static void Upload(RequestContext context)
+        {
+            try
+            {
+                string fileName = string.Empty;
+                string filePath = string.Empty;
+                //获取Post请求中的参数和值帮助类
+                HttpListenerPostParaHelper httppost = new HttpListenerPostParaHelper(context.context);
+                //获取Post过来的参数和数据
+                List<HttpListenerPostValue> lst = httppost.GetHttpListenerPostValue();
+                foreach (var key in lst)
+                {
+                    if (key.type == 0)
+                    {
+                        string value = Encoding.UTF8.GetString(key.datas).Replace("\r\n", "");
+                        if (key.name == "filename")
+                        {
+                            fileName = value;
+                            filePath = Application.persistentDataPath + "/" + fileName;
+                        }
+                    }
+                }
+
+
+                foreach (var key in lst)
+                {
+                    if (key.type == 1)
+                    {
+                        if (!string.IsNullOrEmpty(fileName))
+                        {
+                            if (key.name == "file")
+                            {
+                                if (File.Exists(filePath))
+                                {
+                                    File.Delete(filePath);
+                                }
+
+                                FileStream fs = new FileStream(filePath, FileMode.Create);
+                                fs.Write(key.datas, 0, key.datas.Length);
+                                fs.Close();
+                                fs.Dispose();
+                            }
+                        }
+                    }
+                }
+
+                context.Response.WriteString("Received successfully: " + filePath);
+            }
+            catch (Exception e)
+            {
+                context.Response.WriteString(e.Message + "/n" + e.StackTrace);
+            }
+        }
+
         [Route("^/console/run$")]
         public static void Run(RequestContext context)
         {
@@ -822,6 +893,29 @@ namespace UnityToolbag.ConsoleServer
                 found = Console.Complete(partialCommand);
 
             context.Response.WriteString(found);
+        }
+
+
+        private static void WriteStreamToFile(BinaryReader br, string fileName, long length)
+        {
+            byte[] fileContents = new byte[] { };
+            var bytes = new byte[length];
+            int i = 0;
+            while ((i = br.Read(bytes, 0, (int) length)) != 0)
+            {
+                byte[] arr = new byte[fileContents.LongLength + i];
+                fileContents.CopyTo(arr, 0);
+                Array.Copy(bytes, 0, arr, fileContents.Length, i);
+                fileContents = arr;
+            }
+
+            using (var fs = new FileStream(fileName, FileMode.Create))
+            {
+                using (var bw = new BinaryWriter(fs))
+                {
+                    bw.Write(fileContents);
+                }
+            }
         }
     }
 
@@ -1003,6 +1097,146 @@ namespace UnityToolbag.ConsoleServer
                 }
                 else
                     m_command.m_callback(args);
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// HttpListenner监听Post请求参数值实体
+    /// </summary>
+    public class HttpListenerPostValue
+    {
+        /// <summary>
+        /// 0=> 参数
+        /// 1=> 文件
+        /// </summary>
+        public int type = 0;
+
+        public string name;
+        public byte[] datas;
+    }
+
+    /// <summary>
+    /// 获取Post请求中的参数和值帮助类
+    /// </summary>
+    public class HttpListenerPostParaHelper
+    {
+        private HttpListenerContext request;
+
+        public HttpListenerPostParaHelper(HttpListenerContext request)
+        {
+            this.request = request;
+        }
+
+        private bool CompareBytes(byte[] source, byte[] comparison)
+        {
+            try
+            {
+                int count = source.Length;
+                if (source.Length != comparison.Length)
+                    return false;
+                for (int i = 0; i < count; i++)
+                    if (source[i] != comparison[i])
+                        return false;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private byte[] ReadLineAsBytes(Stream SourceStream)
+        {
+            var resultStream = new MemoryStream();
+            while (true)
+            {
+                int data = SourceStream.ReadByte();
+                resultStream.WriteByte((byte) data);
+                if (data == 10)
+                    break;
+            }
+
+            resultStream.Position = 0;
+            byte[] dataBytes = new byte[resultStream.Length];
+            resultStream.Read(dataBytes, 0, dataBytes.Length);
+            return dataBytes;
+        }
+
+        /// <summary>
+        /// 获取Post过来的参数和数据
+        /// </summary>
+        /// <returns></returns>
+        public List<HttpListenerPostValue> GetHttpListenerPostValue()
+        {
+            try
+            {
+                List<HttpListenerPostValue> HttpListenerPostValueList = new List<HttpListenerPostValue>();
+                if (request.Request.ContentType.Length > 20 &&
+                    string.Compare(request.Request.ContentType.Substring(0, 20), "multipart/form-data;", true) == 0)
+                {
+                    string[] HttpListenerPostValue = request.Request.ContentType.Split(';').Skip(1).ToArray();
+                    string boundary = string.Join(";", HttpListenerPostValue).Replace("boundary=", "").Trim();
+                    byte[] ChunkBoundary = Encoding.UTF8.GetBytes("--" + boundary + "\r\n");
+                    byte[] EndBoundary = Encoding.UTF8.GetBytes("--" + boundary + "--\r\n");
+                    Stream SourceStream = request.Request.InputStream;
+                    var resultStream = new MemoryStream();
+                    bool CanMoveNext = true;
+                    HttpListenerPostValue data = null;
+                    while (CanMoveNext)
+                    {
+                        byte[] currentChunk = ReadLineAsBytes(SourceStream);
+                        if (!Encoding.UTF8.GetString(currentChunk).Equals("\r\n"))
+                            resultStream.Write(currentChunk, 0, currentChunk.Length);
+                        if (CompareBytes(ChunkBoundary, currentChunk))
+                        {
+                            byte[] result = new byte[resultStream.Length - ChunkBoundary.Length];
+                            resultStream.Position = 0;
+                            resultStream.Read(result, 0, result.Length);
+                            CanMoveNext = true;
+                            if (result.Length > 0)
+                                data.datas = result;
+                            data = new HttpListenerPostValue();
+                            HttpListenerPostValueList.Add(data);
+                            resultStream.Dispose();
+                            resultStream = new MemoryStream();
+                        }
+                        else if (Encoding.UTF8.GetString(currentChunk).Contains("Content-Disposition"))
+                        {
+                            byte[] result = new byte[resultStream.Length - 2];
+                            resultStream.Position = 0;
+                            resultStream.Read(result, 0, result.Length);
+                            CanMoveNext = true;
+                            data.name = Encoding.UTF8.GetString(result)
+                                .Replace("Content-Disposition: form-data; name=\"", "").Replace("\"", "").Split(';')[0];
+                            resultStream.Dispose();
+                            resultStream = new MemoryStream();
+                        }
+                        else if (Encoding.UTF8.GetString(currentChunk).Contains("Content-Type"))
+                        {
+                            CanMoveNext = true;
+                            data.type = 1;
+                            resultStream.Dispose();
+                            resultStream = new MemoryStream();
+                        }
+                        else if (CompareBytes(EndBoundary, currentChunk))
+                        {
+                            byte[] result = new byte[resultStream.Length - EndBoundary.Length - 2];
+                            resultStream.Position = 0;
+                            resultStream.Read(result, 0, result.Length);
+                            data.datas = result;
+                            resultStream.Dispose();
+                            CanMoveNext = false;
+                        }
+                    }
+                }
+
+                return HttpListenerPostValueList;
+            }
+            catch (Exception ex)
+            {
+                return null;
             }
         }
     }
