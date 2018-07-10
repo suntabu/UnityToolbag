@@ -633,7 +633,7 @@ namespace UnityToolbag.ConsoleServer
         public static void EnterLua(string[] args)
         {
             CurrentState = STATE_LUA;
-            var key = "EnterLua";
+            var key = "enterlua";
             if (!ConsoleServer.customActions.ContainsKey(key))
             {
                 Log("Lua callback not registered");
@@ -851,6 +851,18 @@ namespace UnityToolbag.ConsoleServer
                         }
                     }
                 }
+
+                var actionKey = "unzip";
+
+                if (!ConsoleServer.customActions.ContainsKey(actionKey))
+                {
+                    context.Response.WriteString("unzip callback not registered");
+                    return;
+                }
+
+                Action<string> action = ConsoleServer.customActions[actionKey];
+
+                action(filePath + "," + Application.persistentDataPath);
 
                 context.Response.WriteString("Received successfully: " + filePath);
             }
