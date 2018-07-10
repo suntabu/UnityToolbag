@@ -637,7 +637,14 @@ namespace UnityToolbag.ConsoleServer
                 else
                 {
                     Log("DOString: " + args[0]);
-                    action(args[0]);
+                    try
+                    {
+                        action(args[0]);
+                    }
+                    catch (Exception e)
+                    {
+                        Log(e.Message + "\n" + e.StackTrace);
+                    }
                 }
             }
             else
