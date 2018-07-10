@@ -294,6 +294,15 @@ namespace UnityToolbag.ConsoleServer
 
         public void Start(int port = 55055, bool isRegisterLogCallback = true)
         {
+            if (listener != null && listener.IsListening && mRunningThread != null && mRunningThread.IsAlive)
+            {
+                return;
+            }
+            else
+            {
+                Stop();
+            }
+
             mPort = port;
             mRegisterLogCallback = isRegisterLogCallback;
             // Start server
