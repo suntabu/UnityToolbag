@@ -42,7 +42,9 @@ namespace UnityToolbag.ConsoleServer
         private static HttpListener listener;
         private static List<RouteAttribute> registeredRoutes;
         private static Queue<RequestContext> mainRequests = new Queue<RequestContext>();
-        internal static Dictionary<string, Action<string>> customActions = new Dictionary<string, Action<string>>();
+
+        internal static Dictionary<string, Func<string, string>> customActions =
+            new Dictionary<string, Func<string, string>>();
 
         // List of supported files
         // FIXME add an api to register new types
@@ -369,7 +371,7 @@ namespace UnityToolbag.ConsoleServer
             }
         }
 
-        public void AddCustomAction(string key, Action<string> action)
+        public void AddCustomAction(string key, Func<string, string> action)
         {
             customActions[key] = action;
         }
@@ -446,6 +448,21 @@ namespace UnityToolbag.ConsoleServer
 
     public static class ResponseExtension
     {
+        public static void WriteError(this HttpListenerResponse response, HttpStatusCode code, string statusDesc,
+            string input, string type = "text/plain")
+        {
+            response.StatusCode = (int) code;
+            response.StatusDescription = statusDesc;
+
+            if (!string.IsNullOrEmpty(input))
+            {
+                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(input);
+                response.ContentLength64 = buffer.Length;
+                response.ContentType = type;
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+            }
+        }
+
         public static void WriteString(this HttpListenerResponse response, string input, string type = "text/plain")
         {
             response.StatusCode = (int) HttpStatusCode.OK;
@@ -506,7 +523,7 @@ namespace UnityToolbag.ConsoleServer
             "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABuklEQVQ4jaWTPUhbURiGn5t7vJJrUFuTXNKIVgsVQyQoikjF0g5VQToKQkXcXLq4CRUHwa1bJzsUCi3+tIsOoohCB8GCSBVCoZXrX9WkNUbIj5GbpINybUgTUvrBWc4573Pe7+U70lZzXRpAODUkWVBIpZMGRjAAgAWgvPspslUtSKx6faj1Xip6nwEghFMj7t8msacXBDBcboqcGjH/NsKpISRZkKi9z2XZrYIANk8DhEOU+Jo4X1lCAIS2Nokf/aB58i3HC/M4Hjzk68sJLo6PsgDFdgdl6k27GakFlheJ7elIHY/QHj+h3NdonkW+f2Nn8hXG6S/CKxsUudzAdYgmzWajqm8A/c1rSj1eXF095rrd0vrXljIcnG18Jrqrc2/oOUgS+7PvUSursLe158wkw0H4yyZ3+wext7VzMPMO//gohx+nc4qzAAAWRUGS5byinC38WZ4X49QNjyDU/AOWe3ZTKUinMKIRjGiEi8DJvwH8E2MEV5fzvg4g0kkDi1Jsbhx8mOLnp1Wi+k5eoUVRSMZjCCMYwNHZc+X6MkFofc28ZL3jzhIqFQ5EdQ1WTwPhhTmk//3OvwGiHYnCU40aDAAAAABJRU5ErkJggg==";
 
         public static string UPLOAD_HTML =
-            "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJVVEYtOCI+CiAgICA8dGl0bGU+VXBsb2FkPC90aXRsZT4KICAgIDxzY3JpcHQ+CiAgICAgICAgdmFyIG9uVXBsb2FkID0gZnVuY3Rpb24gKCkgewogICAgICAgICAgICB2YXIgZmlsZXMgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZmlsZXMnKS5maWxlczsgLy9maWxlc+aYr+aWh+S7tumAieaLqeahhumAieaLqeeahOaWh+S7tuWvueixoeaVsOe7hAoKICAgICAgICAgICAgaWYgKGZpbGVzLmxlbmd0aCA9PSAwKSB7CiAgICAgICAgICAgICAgICBhbGVydCgibm8gZmlsZXMgbmVlZCB1cGxvYWQiKTsKICAgICAgICAgICAgICAgIHJldHVybjsKICAgICAgICAgICAgfQoKICAgICAgICAgICAgdmFyIGZvcm0gPSBuZXcgRm9ybURhdGEoKSwKICAgICAgICAgICAgICAgIHVybCA9ICJodHRwOi8vIiArIHdpbmRvdy5sb2NhdGlvbi5ob3N0ICsgIi91cGxvYWQiLCAvL+acjeWKoeWZqOS4iuS8oOWcsOWdgAogICAgICAgICAgICAgICAgZmlsZSA9IGZpbGVzWzBdOwogICAgICAgICAgICBmb3JtLmFwcGVuZCgnZmlsZScsIGZpbGUpOwogICAgICAgICAgICBmb3JtLmFwcGVuZCgnZmlsZW5hbWUnLCBmaWxlLm5hbWUpOwoKICAgICAgICAgICAgdmFyIHhociA9IG5ldyBYTUxIdHRwUmVxdWVzdCgpOwogICAgICAgICAgICB4aHIub3BlbigicG9zdCIsIHVybCwgdHJ1ZSk7Ci8v5LiK5Lyg6L+b5bqm5LqL5Lu2CiAgICAgICAgICAgIHhoci51cGxvYWQuYWRkRXZlbnRMaXN0ZW5lcigicHJvZ3Jlc3MiLCBmdW5jdGlvbiAocmVzdWx0KSB7CiAgICAgICAgICAgICAgICBpZiAocmVzdWx0Lmxlbmd0aENvbXB1dGFibGUpIHsKICAgICAgICAgICAgICAgICAgICAvL+S4iuS8oOi/m+W6pgogICAgICAgICAgICAgICAgICAgIHZhciBwZXJjZW50ID0gKHJlc3VsdC5sb2FkZWQgLyByZXN1bHQudG90YWwgKiAxMDApLnRvRml4ZWQoMik7CiAgICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2dyZXNzTnVtYmVyJykuaW5uZXJIVE1MID0gcGVyY2VudCArICclJzsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfSwgZmFsc2UpOwoKICAgICAgICAgICAgeGhyLmFkZEV2ZW50TGlzdGVuZXIoInJlYWR5c3RhdGVjaGFuZ2UiLCBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgICAgICB2YXIgcmVzdWx0ID0geGhyOwogICAgICAgICAgICAgICAgaWYgKHJlc3VsdC5zdGF0dXMgIT0gMjAwKSB7IC8vZXJyb3IKICAgICAgICAgICAgICAgICAgICBjb25zb2xlLmxvZygn5LiK5Lyg5aSx6LSlJywgcmVzdWx0LnN0YXR1cywgcmVzdWx0LnN0YXR1c1RleHQsIHJlc3VsdC5yZXNwb25zZSk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICBlbHNlIGlmIChyZXN1bHQucmVhZHlTdGF0ZSA9PSA0KSB7IC8vZmluaXNoZWQKICAgICAgICAgICAgICAgICAgICBjb25zb2xlLmxvZygn5LiK5Lyg5oiQ5YqfJywgcmVzdWx0KTsKICAgICAgICAgICAgICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncHJvZ3Jlc3NOdW1iZXInKS5pbm5lckhUTUwgPSAnMTAwJSc7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0pOwogICAgICAgICAgICB4aHIuc2VuZChmb3JtKTsgLy/lvIDlp4vkuIrkvKAKCiAgICAgICAgfQoKICAgIDwvc2NyaXB0Pgo8L2hlYWQ+Cjxib2R5Pgo8aW5wdXQgdHlwZT0iZmlsZSIgbmFtZT0iZmlsZVBpY2tlciIgaWQ9ImZpbGVzIi8+CiZuYnNwOzxsYWJlbCBpZD0icHJvZ3Jlc3NOdW1iZXIiPjwvbGFiZWw+CjxidXR0b24gdHlwZT0iYnV0dG9uIiBvbmNsaWNrPSJvblVwbG9hZCgpIj5VcGxvYWQgRmlsZXMhPC9idXR0b24+Cgo8L2JvZHk+CjwvaHRtbD4=";
+            "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJVVEYtOCI+CiAgICA8dGl0bGU+VXBsb2FkPC90aXRsZT4KICAgIDxzY3JpcHQ+CiAgICAgICAgdmFyIG9uVXBsb2FkID0gZnVuY3Rpb24gKCkgewogICAgICAgICAgICB2YXIgZmlsZXMgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZmlsZXMnKS5maWxlczsgLy9maWxlc+aYr+aWh+S7tumAieaLqeahhumAieaLqeeahOaWh+S7tuWvueixoeaVsOe7hAoKICAgICAgICAgICAgaWYgKGZpbGVzLmxlbmd0aCA9PSAwKSB7CiAgICAgICAgICAgICAgICBhbGVydCgibm8gZmlsZXMgbmVlZCB1cGxvYWQiKTsKICAgICAgICAgICAgICAgIHJldHVybjsKICAgICAgICAgICAgfQoKICAgICAgICAgICAgdmFyIGZvcm0gPSBuZXcgRm9ybURhdGEoKSwKICAgICAgICAgICAgICAgIHVybCA9ICJodHRwOi8vIiArIHdpbmRvdy5sb2NhdGlvbi5ob3N0ICsgIi91cGxvYWQiLCAvL+acjeWKoeWZqOS4iuS8oOWcsOWdgAogICAgICAgICAgICAgICAgZmlsZSA9IGZpbGVzWzBdOwogICAgICAgICAgICBmb3JtLmFwcGVuZCgnZmlsZScsIGZpbGUpOwogICAgICAgICAgICBmb3JtLmFwcGVuZCgnZmlsZW5hbWUnLCBmaWxlLm5hbWUpOwoKICAgICAgICAgICAgdmFyIHhociA9IG5ldyBYTUxIdHRwUmVxdWVzdCgpOwogICAgICAgICAgICB4aHIub3BlbigicG9zdCIsIHVybCwgdHJ1ZSk7Ci8v5LiK5Lyg6L+b5bqm5LqL5Lu2CiAgICAgICAgICAgIHhoci51cGxvYWQuYWRkRXZlbnRMaXN0ZW5lcigicHJvZ3Jlc3MiLCBmdW5jdGlvbiAocmVzdWx0KSB7CiAgICAgICAgICAgICAgICBpZiAocmVzdWx0Lmxlbmd0aENvbXB1dGFibGUpIHsKICAgICAgICAgICAgICAgICAgICAvL+S4iuS8oOi/m+W6pgogICAgICAgICAgICAgICAgICAgIHZhciBwZXJjZW50ID0gKHJlc3VsdC5sb2FkZWQgLyByZXN1bHQudG90YWwgKiAxMDApLnRvRml4ZWQoMik7CiAgICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2dyZXNzTnVtYmVyJykuaW5uZXJIVE1MID0gcGVyY2VudCArICclJzsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfSwgZmFsc2UpOwoKICAgICAgICAgICAgeGhyLmFkZEV2ZW50TGlzdGVuZXIoInJlYWR5c3RhdGVjaGFuZ2UiLCBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgICAgICB2YXIgcmVzdWx0ID0geGhyOwogICAgICAgICAgICAgICAgaWYgKHJlc3VsdC5zdGF0dXMgIT0gMjAwKSB7IC8vZXJyb3IKICAgICAgICAgICAgICAgICAgICBjb25zb2xlLmxvZygn5LiK5Lyg5aSx6LSlJywgcmVzdWx0LnN0YXR1cywgcmVzdWx0LnN0YXR1c1RleHQsIHJlc3VsdC5yZXNwb25zZSk7CgogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgZWxzZSBpZiAocmVzdWx0LnJlYWR5U3RhdGUgPT0gNCkgeyAvL2ZpbmlzaGVkCiAgICAgICAgICAgICAgICAgICAgY29uc29sZS5sb2coJ+S4iuS8oOaIkOWKnycsIHJlc3VsdCk7CiAgICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2dyZXNzTnVtYmVyJykuaW5uZXJIVE1MID0gJzEwMCUnOwogICAgICAgICAgICAgICAgfQoKICAgICAgICAgICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdyZXN1bHQnKS5pbm5lckhUTUwgPSByZXN1bHQucmVzcG9uc2U7CiAgICAgICAgICAgIH0pOwogICAgICAgICAgICB4aHIuc2VuZChmb3JtKTsgLy/lvIDlp4vkuIrkvKAKCiAgICAgICAgfQoKICAgIDwvc2NyaXB0Pgo8L2hlYWQ+Cjxib2R5Pgo8aW5wdXQgdHlwZT0iZmlsZSIgbmFtZT0iZmlsZVBpY2tlciIgaWQ9ImZpbGVzIi8+CiZuYnNwOzxsYWJlbCBpZD0icHJvZ3Jlc3NOdW1iZXIiPjwvbGFiZWw+CjxidXR0b24gdHlwZT0iYnV0dG9uIiBvbmNsaWNrPSJvblVwbG9hZCgpIj5VcGxvYWQgRmlsZXMhPC9idXR0b24+CiZuYnNwOzxsYWJlbCBpZD0icmVzdWx0Ij48L2xhYmVsPgo8L2JvZHk+CjwvaHRtbD4=";
     }
 
 
@@ -640,7 +657,7 @@ namespace UnityToolbag.ConsoleServer
                 return;
             }
 
-            Action<string> action = ConsoleServer.customActions[key];
+            Func<string, string> action = ConsoleServer.customActions[key];
 
 
             if (args.Length > 0)
@@ -852,23 +869,34 @@ namespace UnityToolbag.ConsoleServer
                     }
                 }
 
-                var actionKey = "unzip";
-
-                if (!ConsoleServer.customActions.ContainsKey(actionKey))
+                if (fileName.ToLower().EndsWith(".zip"))
                 {
-                    context.Response.WriteString("unzip callback not registered");
-                    return;
+                    var actionKey = "unzip";
+
+                    if (!ConsoleServer.customActions.ContainsKey(actionKey))
+                    {
+                        context.Response.WriteString("unzip callback not registered");
+                        return;
+                    }
+
+                    Func<string, string> action = ConsoleServer.customActions[actionKey];
+
+                    string result = action(filePath + "," + Application.persistentDataPath);
+
+                    Debug.LogError("--->" + result);
+                    if (result.ToLower() == "false")
+                    {
+                        context.Response.WriteError(HttpStatusCode.BadRequest, "BadRequest", "unzip failed");
+                        return;
+                    }
                 }
 
-                Action<string> action = ConsoleServer.customActions[actionKey];
-
-                action(filePath + "," + Application.persistentDataPath);
 
                 context.Response.WriteString("Received successfully: " + filePath);
             }
             catch (Exception e)
             {
-                context.Response.WriteString(e.Message + "/n" + e.StackTrace);
+                context.Response.WriteError(HttpStatusCode.BadRequest, "BadRequest", e.Message + "/n" + e.StackTrace);
             }
         }
 
