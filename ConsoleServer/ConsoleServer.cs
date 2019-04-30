@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -23,7 +23,7 @@ namespace UnityToolbag.ConsoleServer
         private ConsoleServer()
         {
             mainThread = Thread.CurrentThread;
-            fileRoot = Path.Combine(Application.streamingAssetsPath, "/");
+            fileRoot = Path.Combine(Application.persistentDataPath, "/");
         }
 
         private static ConsoleServer mInstance;
@@ -298,6 +298,11 @@ namespace UnityToolbag.ConsoleServer
 
         public void Start(int port = 55055, bool isRegisterLogCallback = true)
         {
+            if (!UnityEngine.Debug.isDebugBuild)
+            {
+                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");                
+            }
+            
             if (listener != null && listener.IsListening && mRunningThread != null && mRunningThread.IsAlive)
             {
                 return;
@@ -374,6 +379,11 @@ namespace UnityToolbag.ConsoleServer
         public void AddCustomAction(string key, Func<string, string> action)
         {
             customActions[key] = action;
+        }
+
+        public void AddLuaStartAction(Func<string, string> action)
+        {
+            customActions[Res.LUA_ENTER_KEY] = action;
         }
     }
 
@@ -524,6 +534,9 @@ namespace UnityToolbag.ConsoleServer
 
         public static string UPLOAD_HTML =
             "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJVVEYtOCI+CiAgICA8dGl0bGU+VXBsb2FkPC90aXRsZT4KICAgIDxzY3JpcHQ+CiAgICAgICAgdmFyIG9uVXBsb2FkID0gZnVuY3Rpb24gKCkgewogICAgICAgICAgICB2YXIgZmlsZXMgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZmlsZXMnKS5maWxlczsgLy9maWxlc+aYr+aWh+S7tumAieaLqeahhumAieaLqeeahOaWh+S7tuWvueixoeaVsOe7hAoKICAgICAgICAgICAgaWYgKGZpbGVzLmxlbmd0aCA9PSAwKSB7CiAgICAgICAgICAgICAgICBhbGVydCgibm8gZmlsZXMgbmVlZCB1cGxvYWQiKTsKICAgICAgICAgICAgICAgIHJldHVybjsKICAgICAgICAgICAgfQoKICAgICAgICAgICAgdmFyIGZvcm0gPSBuZXcgRm9ybURhdGEoKSwKICAgICAgICAgICAgICAgIHVybCA9ICJodHRwOi8vIiArIHdpbmRvdy5sb2NhdGlvbi5ob3N0ICsgIi91cGxvYWQiLCAvL+acjeWKoeWZqOS4iuS8oOWcsOWdgAogICAgICAgICAgICAgICAgZmlsZSA9IGZpbGVzWzBdOwogICAgICAgICAgICBmb3JtLmFwcGVuZCgnZmlsZScsIGZpbGUpOwogICAgICAgICAgICBmb3JtLmFwcGVuZCgnZmlsZW5hbWUnLCBmaWxlLm5hbWUpOwoKICAgICAgICAgICAgdmFyIHhociA9IG5ldyBYTUxIdHRwUmVxdWVzdCgpOwogICAgICAgICAgICB4aHIub3BlbigicG9zdCIsIHVybCwgdHJ1ZSk7Ci8v5LiK5Lyg6L+b5bqm5LqL5Lu2CiAgICAgICAgICAgIHhoci51cGxvYWQuYWRkRXZlbnRMaXN0ZW5lcigicHJvZ3Jlc3MiLCBmdW5jdGlvbiAocmVzdWx0KSB7CiAgICAgICAgICAgICAgICBpZiAocmVzdWx0Lmxlbmd0aENvbXB1dGFibGUpIHsKICAgICAgICAgICAgICAgICAgICAvL+S4iuS8oOi/m+W6pgogICAgICAgICAgICAgICAgICAgIHZhciBwZXJjZW50ID0gKHJlc3VsdC5sb2FkZWQgLyByZXN1bHQudG90YWwgKiAxMDApLnRvRml4ZWQoMik7CiAgICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2dyZXNzTnVtYmVyJykuaW5uZXJIVE1MID0gcGVyY2VudCArICclJzsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfSwgZmFsc2UpOwoKICAgICAgICAgICAgeGhyLmFkZEV2ZW50TGlzdGVuZXIoInJlYWR5c3RhdGVjaGFuZ2UiLCBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgICAgICB2YXIgcmVzdWx0ID0geGhyOwogICAgICAgICAgICAgICAgaWYgKHJlc3VsdC5zdGF0dXMgIT0gMjAwKSB7IC8vZXJyb3IKICAgICAgICAgICAgICAgICAgICBjb25zb2xlLmxvZygn5LiK5Lyg5aSx6LSlJywgcmVzdWx0LnN0YXR1cywgcmVzdWx0LnN0YXR1c1RleHQsIHJlc3VsdC5yZXNwb25zZSk7CgogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgZWxzZSBpZiAocmVzdWx0LnJlYWR5U3RhdGUgPT0gNCkgeyAvL2ZpbmlzaGVkCiAgICAgICAgICAgICAgICAgICAgY29uc29sZS5sb2coJ+S4iuS8oOaIkOWKnycsIHJlc3VsdCk7CiAgICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2dyZXNzTnVtYmVyJykuaW5uZXJIVE1MID0gJzEwMCUnOwogICAgICAgICAgICAgICAgfQoKICAgICAgICAgICAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdyZXN1bHQnKS5pbm5lckhUTUwgPSByZXN1bHQucmVzcG9uc2U7CiAgICAgICAgICAgIH0pOwogICAgICAgICAgICB4aHIuc2VuZChmb3JtKTsgLy/lvIDlp4vkuIrkvKAKCiAgICAgICAgfQoKICAgIDwvc2NyaXB0Pgo8L2hlYWQ+Cjxib2R5Pgo8aW5wdXQgdHlwZT0iZmlsZSIgbmFtZT0iZmlsZVBpY2tlciIgaWQ9ImZpbGVzIi8+CiZuYnNwOzxsYWJlbCBpZD0icHJvZ3Jlc3NOdW1iZXIiPjwvbGFiZWw+CjxidXR0b24gdHlwZT0iYnV0dG9uIiBvbmNsaWNrPSJvblVwbG9hZCgpIj5VcGxvYWQgRmlsZXMhPC9idXR0b24+CiZuYnNwOzxsYWJlbCBpZD0icmVzdWx0Ij48L2xhYmVsPgo8L2JvZHk+CjwvaHRtbD4=";
+
+
+        public static string LUA_ENTER_KEY = "enterlua";
     }
 
 
@@ -650,14 +663,14 @@ namespace UnityToolbag.ConsoleServer
         public static void EnterLua(string[] args)
         {
             CurrentState = STATE_LUA;
-            var key = "enterlua";
-            if (!ConsoleServer.customActions.ContainsKey(key))
+           
+            if (!ConsoleServer.customActions.ContainsKey(Res.LUA_ENTER_KEY))
             {
                 Log("Lua callback not registered");
                 return;
             }
 
-            Func<string, string> action = ConsoleServer.customActions[key];
+            Func<string, string> action = ConsoleServer.customActions[Res.LUA_ENTER_KEY];
 
 
             if (args.Length > 0)
