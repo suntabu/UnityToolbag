@@ -23,7 +23,7 @@ namespace UnityToolbag.ConsoleServer
         private ConsoleServer()
         {
             mainThread = Thread.CurrentThread;
-            fileRoot = Path.Combine(Application.persistentDataPath, "/");
+            fileRoot = Application.persistentDataPath + "/";
         }
 
         private static ConsoleServer mInstance;
@@ -31,6 +31,27 @@ namespace UnityToolbag.ConsoleServer
         public static ConsoleServer Instance
         {
             get { return mInstance ?? (mInstance = new ConsoleServer()); }
+        }
+
+        public int Port
+        {
+            get { return mPort; }
+        }
+
+        public string IP
+        {
+            get
+            {
+                string hostName = Dns.GetHostName(); //本机名   
+                //System.Net.IPAddress[] addressList = Dns.GetHostByName(hostName).AddressList;//会警告GetHostByName()已过期，我运行时且只返回了一个IPv4的地址   
+                System.Net.IPAddress[] addressList = Dns.GetHostAddresses(hostName);
+                if (addressList.Length > 0)
+                    return addressList[0].ToString();
+                else
+                {
+                    return "localhost";
+                }
+            }
         }
 
         #endregion singleton
@@ -52,6 +73,7 @@ namespace UnityToolbag.ConsoleServer
         {
             {"js", "application/javascript"},
             {"json", "application/json"},
+            {"meta", "application/json"},
             {"jpg", "image/jpeg"},
             {"jpeg", "image/jpeg"},
             {"gif", "image/gif"},
@@ -64,10 +86,10 @@ namespace UnityToolbag.ConsoleServer
 
         private static Dictionary<string, string> internalRes = new Dictionary<string, string>
         {
-            {"/index.html", Res.INDEX_HTML},
-            {"/console.css", Res.INDEX_CSS},
-            {"/favicon.ico", Res.INDEX_ICO},
-            {"/upload.html", Res.UPLOAD_HTML}
+            {"index.html", Res.INDEX_HTML},
+            {"console.css", Res.INDEX_CSS},
+            {"favicon.ico", Res.INDEX_ICO},
+            {"upload.html", Res.UPLOAD_HTML}
         };
 
         private void RegisterRoutes()
@@ -164,13 +186,15 @@ namespace UnityToolbag.ConsoleServer
             {
                 context.Response.WriteFile(path, type, download);
             }
-            else if (internalRes.ContainsKey(path))
-            {
-                context.Response.WriteBytes(Convert.FromBase64String(internalRes[path]));
-            }
             else
             {
-                context.pass = true;
+                var filename = Path.GetFileName(path);
+                if (internalRes.ContainsKey(filename))
+                    context.Response.WriteBytes(Convert.FromBase64String(internalRes[filename]));
+                else
+                {
+                    context.pass = true;
+                }
             }
         }
 
@@ -300,9 +324,9 @@ namespace UnityToolbag.ConsoleServer
         {
             if (!UnityEngine.Debug.isDebugBuild)
             {
-                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");                
+                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
             }
-            
+
             if (listener != null && listener.IsListening && mRunningThread != null && mRunningThread.IsAlive)
             {
                 return;
@@ -524,7 +548,7 @@ namespace UnityToolbag.ConsoleServer
     internal class Res
     {
         public static string INDEX_HTML =
-            "PCFET0NUWVBFIGh0bWw+CjxodG1sPgogIDxoZWFkPgogICAgPGxpbmsgcmVsPSJzdHlsZXNoZWV0IiB0eXBlPSJ0ZXh0L2NzcyIgaHJlZj0iY29uc29sZS5jc3MiPgogICAgPGxpbmsgcmVsPSJzaG9ydGN1dCBpY29uIiBocmVmPSJmYXZpY29uLmljbyIgdHlwZT0iaW1hZ2UveC1pbWFnZSI+CiAgICA8bGluayByZWw9Imljb24iIGhyZWY9ImZhdmljb24uaWNvbiIgdHlwZT0iaW1hZ2UveC1pbWFnZSI+CiAgICA8dGl0bGU+Q1VETFI8L3RpdGxlPgoKICAgIDxzY3JpcHQgc3JjPSJodHRwOi8vYWpheC5nb29nbGVhcGlzLmNvbS9hamF4L2xpYnMvanF1ZXJ5LzEuMTAuMi9qcXVlcnkubWluLmpzIj4KICAgIDwvc2NyaXB0PgoKICAgIDxzY3JpcHQ+CiAgICAgIHZhciBjb21tYW5kSW5kZXggPSAtMTsKICAgICAgdmFyIGhhc2ggPSBudWxsOwogICAgICB2YXIgaXNVcGRhdGVQYXVzZWQgPSBmYWxzZTsKCiAgICAgIGZ1bmN0aW9uIHNjcm9sbEJvdHRvbSgpIHsKICAgICAgICAkKCcjb3V0cHV0Jykuc2Nyb2xsVG9wKCQoJyNvdXRwdXQnKVswXS5zY3JvbGxIZWlnaHQpOwogICAgICB9CgogICAgICBmdW5jdGlvbiBydW5Db21tYW5kKGNvbW1hbmQpIHsKICAgICAgICBzY3JvbGxCb3R0b20oKTsKICAgICAgICAkLmdldCgiY29uc29sZS9ydW4/Y29tbWFuZD0iK2VuY29kZVVSSShlbmNvZGVVUklDb21wb25lbnQoY29tbWFuZCkpLCBmdW5jdGlvbiAoZGF0YSwgc3RhdHVzKSB7CiAgICAgICAgICB1cGRhdGVDb25zb2xlKGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgdXBkYXRlQ29tbWFuZChjb21tYW5kSW5kZXggLSAxKTsKICAgICAgICAgIH0pOwogICAgICAgIH0pOwogICAgICAgIHJlc2V0SW5wdXQoKTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gdXBkYXRlQ29uc29sZShjYWxsYmFjaykgewogICAgICAgIGlmIChpc1VwZGF0ZVBhdXNlZCkgcmV0dXJuOwogICAgICAgICQuZ2V0KCJjb25zb2xlL291dCIsIGZ1bmN0aW9uIChkYXRhLCBzdGF0dXMpIHsKICAgICAgICAgIC8vIENoZWNrIGlmIHdlIGFyZSBzY3JvbGxlZCB0byB0aGUgYm90dG9tIHRvIGZvcmNlIHNjcm9sbGluZyBvbiB1cGRhdGUKICAgICAgICAgIHZhciBvdXRwdXQgPSAkKCcjb3V0cHV0Jyk7CiAgICAgICAgICBzaG91bGRTY3JvbGwgPSBNYXRoLmFicygob3V0cHV0WzBdLnNjcm9sbEhlaWdodCAtIG91dHB1dC5zY3JvbGxUb3AoKSkgLSBvdXRwdXQuaW5uZXJIZWlnaHQoKSkgPCA1OwogICAgICAgICAgb3V0cHV0Lmh0bWwoU3RyaW5nKGRhdGEpLnJlcGxhY2UoL1xufFxyL2csICc8YnI+JykgKyAiPGJyPjxicj48YnI+Iik7CiAgICAgICAgICAvL2NvbnNvbGUubG9nKHNob3VsZFNjcm9sbCArICIgOj0gIiArIG91dHB1dFswXS5zY3JvbGxIZWlnaHQgKyAiIC0gIiArIG91dHB1dC5zY3JvbGxUb3AoKSArICIgKCIgKyBNYXRoLmFicygob3V0cHV0WzBdLnNjcm9sbEhlaWdodCAtIG91dHB1dC5zY3JvbGxUb3AoKSkgLSBvdXRwdXQuaW5uZXJIZWlnaHQoKSkgKyAiKSA9PSAiICsgb3V0cHV0LmlubmVySGVpZ2h0KCkpOwogICAgICAgICAgLy9jb25zb2xlLmxvZyhTdHJpbmcoZGF0YSkpOwogICAgICAgICAgaWYgKGNhbGxiYWNrKSBjYWxsYmFjaygpOwogICAgICAgICAgaWYgKHNob3VsZFNjcm9sbCkgc2Nyb2xsQm90dG9tKCk7CiAgICAgICAgfSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIHJlc2V0SW5wdXQoKSB7CiAgICAgICAgY29tbWFuZEluZGV4ID0gLTE7CiAgICAgICAgJCgiI2lucHV0IikudmFsKCIiKTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gcHJldmlvdXNDb21tYW5kKCkgewogICAgICAgIHVwZGF0ZUNvbW1hbmQoY29tbWFuZEluZGV4ICsgMSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIG5leHRDb21tYW5kKCkgewogICAgICAgIHVwZGF0ZUNvbW1hbmQoY29tbWFuZEluZGV4IC0gMSk7CiAgICAgIH0KCiAgICAgIGZ1bmN0aW9uIHVwZGF0ZUNvbW1hbmQoaW5kZXgpIHsKICAgICAgICAvLyBDaGVjayBpZiB3ZSBhcmUgYXQgdGhlIGRlZnVhbHQgaW5kZXggYW5kIGNsZWFyIHRoZSBpbnB1dAogICAgICAgIGlmIChpbmRleCA8IDApIHsKICAgICAgICAgIHJlc2V0SW5wdXQoKTsKICAgICAgICAgIHJldHVybjsKICAgICAgICB9CgogICAgICAgICQuZ2V0KCJjb25zb2xlL2NvbW1hbmRIaXN0b3J5P2luZGV4PSIraW5kZXgsIGZ1bmN0aW9uIChkYXRhLCBzdGF0dXMpIHsKICAgICAgICAgIGlmIChkYXRhKSB7CiAgICAgICAgICAgIGNvbW1hbmRJbmRleCA9IGluZGV4OwogICAgICAgICAgICAkKCIjaW5wdXQiKS52YWwoU3RyaW5nKGRhdGEpKTsKICAgICAgICAgIH0KICAgICAgICB9KTsKICAgICAgfQoKICAgICAgZnVuY3Rpb24gY29tcGxldGUoY29tbWFuZCkgewogICAgICAgICQuZ2V0KCJjb25zb2xlL2NvbXBsZXRlP2NvbW1hbmQ9Iitjb21tYW5kLCBmdW5jdGlvbiAoZGF0YSwgc3RhdHVzKSB7CiAgICAgICAgICBpZiAoZGF0YSkgewogICAgICAgICAgICAkKCIjaW5wdXQiKS52YWwoU3RyaW5nKGRhdGEpKTsKICAgICAgICAgIH0KICAgICAgICB9KTsKICAgICAgfQoKICAgICAgLy8gUG9sbCB0byB1cGRhdGUgdGhlIGNvbnNvbGUgb3V0cHV0CiAgICAgIHdpbmRvdy5zZXRJbnRlcnZhbChmdW5jdGlvbiAoKSB7IHVwZGF0ZUNvbnNvbGUobnVsbCkgfSwgNTAwKTsKICAgIDwvc2NyaXB0PgogIDwvaGVhZD4KCiAgPGJvZHkgY2xhc3M9ImNvbnNvbGUiPgogICAgPGJ1dHRvbiBpZD0icGF1c2VVcGRhdGVzIj5QYXVzZSBVcGRhdGVzPC9idXR0b24+CiAgICA8ZGl2IGlkPSJvdXRwdXQiIGNsYXNzPSJjb25zb2xlIj48L2Rpdj4KICAgIDx0ZXh0YXJlYSBpZD0iaW5wdXQiIGNsYXNzPSJjb25zb2xlIiBhdXRvZm9jdXMgcm93cz0iMSI+PC90ZXh0YXJlYT4KCiAgICA8c2NyaXB0PgogICAgICAvLyBzZXR1cCBvdXIgcGF1c2UgdXBkYXRlcyBidXR0b24KICAgICAgJCgiI3BhdXNlVXBkYXRlcyIpLmNsaWNrKGZ1bmN0aW9uKCkgewogICAgICAgIC8vY29uc29sZS5sb2coInBhdXNlIHVwZGF0ZXMgIiArIGlzVXBkYXRlUGF1c2VkKTsKICAgICAgICBpc1VwZGF0ZVBhdXNlZCA9ICFpc1VwZGF0ZVBhdXNlZDsKICAgICAgICAkKCIjcGF1c2VVcGRhdGVzIikuaHRtbChpc1VwZGF0ZVBhdXNlZCA/ICJSZXN1bWUgVXBkYXRlcyIgOiAiUGF1c2UgVXBkYXRlcyIpOwogICAgICB9KTsKCiAgICAgICQoIiNpbnB1dCIpLmtleWRvd24oIGZ1bmN0aW9uIChlKSB7CiAgICAgICAgaWYgKGUua2V5Q29kZSA9PSAxMykgeyAvLyBFbnRlcgogICAgICAgICAgLy8gd2UgZG9uJ3Qgd2FudCBhIGxpbmUgYnJlYWsgaW4gdGhlIGNvbnNvbGUKICAgICAgICAgIGUucHJldmVudERlZmF1bHQoKTsKICAgICAgICAgIHJ1bkNvbW1hbmQoJCgiI2lucHV0IikudmFsKCkpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDM4KSB7IC8vIFVwCiAgICAgICAgICBwcmV2aW91c0NvbW1hbmQoKTsKICAgICAgICB9IGVsc2UgaWYgKGUua2V5Q29kZSA9PSA0MCkgeyAvLyBEb3duCiAgICAgICAgICBuZXh0Q29tbWFuZCgpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDI3KSB7IC8vIEVzY2FwZQogICAgICAgICAgcmVzZXRJbnB1dCgpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDkpIHsgLy8gVGFiCiAgICAgICAgICBlLnByZXZlbnREZWZhdWx0KCk7CiAgICAgICAgICBjb21wbGV0ZSgkKCIjaW5wdXQiKS52YWwoKSk7CiAgICAgICAgfQogICAgICB9KTsKICAgIDwvc2NyaXB0PgogIDwvYm9keT4KCjwvaHRtbD4=";
+            "PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIgdHlwZT0idGV4dC9jc3MiIGhyZWY9ImNvbnNvbGUuY3NzIj4KICAgIDxsaW5rIHJlbD0ic2hvcnRjdXQgaWNvbiIgaHJlZj0iZmF2aWNvbi5pY28iIHR5cGU9ImltYWdlL3gtaW1hZ2UiPgogICAgPGxpbmsgcmVsPSJpY29uIiBocmVmPSJmYXZpY29uLmljb24iIHR5cGU9ImltYWdlL3gtaW1hZ2UiPgogICAgPHRpdGxlPkNvbnNvbGUgU2VydmVyPC90aXRsZT4KCiAgICA8c2NyaXB0IHNyYz0iaHR0cDovL2FqYXguZ29vZ2xlYXBpcy5jb20vYWpheC9saWJzL2pxdWVyeS8xLjEwLjIvanF1ZXJ5Lm1pbi5qcyI+CiAgICA8L3NjcmlwdD4KCiAgICA8c2NyaXB0PgogICAgICAgIHZhciBjb21tYW5kSW5kZXggPSAtMTsKICAgICAgICB2YXIgaGFzaCA9IG51bGw7CiAgICAgICAgdmFyIGlzVXBkYXRlUGF1c2VkID0gZmFsc2U7CiAgICAgICAgdmFyIF9kYXRhID0gIiI7CgogICAgICAgIGZ1bmN0aW9uIHNjcm9sbEJvdHRvbSgpIHsKICAgICAgICAgICAgJCgnI291dHB1dCcpLnNjcm9sbFRvcCgkKCcjb3V0cHV0JylbMF0uc2Nyb2xsSGVpZ2h0KTsKICAgICAgICB9CgogICAgICAgIGZ1bmN0aW9uIHJ1bkNvbW1hbmQoY29tbWFuZCkgewogICAgICAgICAgICBzY3JvbGxCb3R0b20oKTsKICAgICAgICAgICAgJC5nZXQoImNvbnNvbGUvcnVuP2NvbW1hbmQ9IiArIGVuY29kZVVSSShlbmNvZGVVUklDb21wb25lbnQoY29tbWFuZCkpLCBmdW5jdGlvbiAoZGF0YSwgc3RhdHVzKSB7CiAgICAgICAgICAgICAgICB1cGRhdGVDb25zb2xlKGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgICAgICAgICB1cGRhdGVDb21tYW5kKGNvbW1hbmRJbmRleCAtIDEpOwogICAgICAgICAgICAgICAgfSk7CiAgICAgICAgICAgIH0pOwogICAgICAgICAgICByZXNldElucHV0KCk7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiB1cGRhdGVDb25zb2xlKGNhbGxiYWNrKSB7CiAgICAgICAgICAgIGlmIChpc1VwZGF0ZVBhdXNlZCkgcmV0dXJuOwogICAgICAgICAgICAkLmdldCgiY29uc29sZS9vdXQiLCBmdW5jdGlvbiAoZGF0YSwgc3RhdHVzKSB7CiAgICAgICAgICAgICAgICBpZiAoZGF0YSA9PSB1bmRlZmluZWQgfHwgX2RhdGEubGVuZ3RoID09IFN0cmluZyhkYXRhKS5sZW5ndGgpIHsKICAgICAgICAgICAgICAgICAgICByZXR1cm47CiAgICAgICAgICAgICAgICB9CgogICAgICAgICAgICAgICAgX2RhdGEgPSBTdHJpbmcoZGF0YSk7CgogICAgICAgICAgICAgICAgdmFyIGxpbmVzID0gX2RhdGEuc3BsaXQoL1xufFxyL2cpOwogICAgICAgICAgICAgICAgdmFyIGh0bWwgPSAiIjsKICAgICAgICAgICAgICAgIGZvciAodmFyIGkgPSAwOyBpIDwgbGluZXMubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgICAgICAgICB2YXIgbGluZSA9IGxpbmVzW2ldOwogICAgICAgICAgICAgICAgICAgIHZhciBpbmRleCA9IGxpbmUuaW5kZXhPZignaHR0cCcpOwogICAgICAgICAgICAgICAgICAgIGlmIChpbmRleCA+PSAwKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHZhciB1cmwgPSBsaW5lLnN1YnN0cmluZyhpbmRleCk7CiAgICAgICAgICAgICAgICAgICAgICAgIGxpbmUgPSBsaW5lLnN1YnN0cmluZygwLCBpbmRleC0xKSArICc8YSBocmVmPScgKyB1cmwgKyAnPicgKyB1cmwgKyAiPC9hPiI7CiAgICAgICAgICAgICAgICAgICAgICAgIGNvbnNvbGUubG9nKGxpbmUpCiAgICAgICAgICAgICAgICAgICAgfQoKICAgICAgICAgICAgICAgICAgICBodG1sICs9IGxpbmUgKyAnPC9icj4nOwogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgaHRtbCArPSAiPGJyPjxicj48YnI+IgogICAgICAgICAgICAgICAgLy8gQ2hlY2sgaWYgd2UgYXJlIHNjcm9sbGVkIHRvIHRoZSBib3R0b20gdG8gZm9yY2Ugc2Nyb2xsaW5nIG9uIHVwZGF0ZQogICAgICAgICAgICAgICAgdmFyIG91dHB1dCA9ICQoJyNvdXRwdXQnKTsKICAgICAgICAgICAgICAgIHNob3VsZFNjcm9sbCA9IE1hdGguYWJzKChvdXRwdXRbMF0uc2Nyb2xsSGVpZ2h0IC0gb3V0cHV0LnNjcm9sbFRvcCgpKSAtIG91dHB1dC5pbm5lckhlaWdodCgpKSA8IDU7CiAgICAgICAgICAgICAgICBvdXRwdXQuaHRtbChodG1sKTsKICAgICAgICAgICAgICAgIC8vY29uc29sZS5sb2coc2hvdWxkU2Nyb2xsICsgIiA6PSAiICsgb3V0cHV0WzBdLnNjcm9sbEhlaWdodCArICIgLSAiICsgb3V0cHV0LnNjcm9sbFRvcCgpICsgIiAoIiArIE1hdGguYWJzKChvdXRwdXRbMF0uc2Nyb2xsSGVpZ2h0IC0gb3V0cHV0LnNjcm9sbFRvcCgpKSAtIG91dHB1dC5pbm5lckhlaWdodCgpKSArICIpID09ICIgKyBvdXRwdXQuaW5uZXJIZWlnaHQoKSk7CiAgICAgICAgICAgICAgICAvL2NvbnNvbGUubG9nKFN0cmluZyhkYXRhKSk7CiAgICAgICAgICAgICAgICBpZiAoY2FsbGJhY2spIGNhbGxiYWNrKCk7CiAgICAgICAgICAgICAgICBpZiAoc2hvdWxkU2Nyb2xsKSBzY3JvbGxCb3R0b20oKTsKICAgICAgICAgICAgfSk7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiByZXNldElucHV0KCkgewogICAgICAgICAgICBjb21tYW5kSW5kZXggPSAtMTsKICAgICAgICAgICAgJCgiI2lucHV0IikudmFsKCIiKTsKICAgICAgICB9CgogICAgICAgIGZ1bmN0aW9uIHByZXZpb3VzQ29tbWFuZCgpIHsKICAgICAgICAgICAgdXBkYXRlQ29tbWFuZChjb21tYW5kSW5kZXggKyAxKTsKICAgICAgICB9CgogICAgICAgIGZ1bmN0aW9uIG5leHRDb21tYW5kKCkgewogICAgICAgICAgICB1cGRhdGVDb21tYW5kKGNvbW1hbmRJbmRleCAtIDEpOwogICAgICAgIH0KCiAgICAgICAgZnVuY3Rpb24gdXBkYXRlQ29tbWFuZChpbmRleCkgewogICAgICAgICAgICAvLyBDaGVjayBpZiB3ZSBhcmUgYXQgdGhlIGRlZnVhbHQgaW5kZXggYW5kIGNsZWFyIHRoZSBpbnB1dAogICAgICAgICAgICBpZiAoaW5kZXggPCAwKSB7CiAgICAgICAgICAgICAgICByZXNldElucHV0KCk7CiAgICAgICAgICAgICAgICByZXR1cm47CiAgICAgICAgICAgIH0KCiAgICAgICAgICAgICQuZ2V0KCJjb25zb2xlL2NvbW1hbmRIaXN0b3J5P2luZGV4PSIgKyBpbmRleCwgZnVuY3Rpb24gKGRhdGEsIHN0YXR1cykgewogICAgICAgICAgICAgICAgaWYgKGRhdGEpIHsKICAgICAgICAgICAgICAgICAgICBjb21tYW5kSW5kZXggPSBpbmRleDsKICAgICAgICAgICAgICAgICAgICAkKCIjaW5wdXQiKS52YWwoU3RyaW5nKGRhdGEpKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfSk7CiAgICAgICAgfQoKICAgICAgICBmdW5jdGlvbiBjb21wbGV0ZShjb21tYW5kKSB7CiAgICAgICAgICAgICQuZ2V0KCJjb25zb2xlL2NvbXBsZXRlP2NvbW1hbmQ9IiArIGNvbW1hbmQsIGZ1bmN0aW9uIChkYXRhLCBzdGF0dXMpIHsKICAgICAgICAgICAgICAgIGlmIChkYXRhKSB7CiAgICAgICAgICAgICAgICAgICAgJCgiI2lucHV0IikudmFsKFN0cmluZyhkYXRhKSk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0pOwogICAgICAgIH0KCiAgICAgICAgLy8gUG9sbCB0byB1cGRhdGUgdGhlIGNvbnNvbGUgb3V0cHV0CiAgICAgICAgd2luZG93LnNldEludGVydmFsKGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgdXBkYXRlQ29uc29sZShudWxsKQogICAgICAgIH0sIDUwMCk7CiAgICA8L3NjcmlwdD4KPC9oZWFkPgoKPGJvZHkgY2xhc3M9ImNvbnNvbGUiPgo8YnV0dG9uIGlkPSJwYXVzZVVwZGF0ZXMiPlBhdXNlIFVwZGF0ZXM8L2J1dHRvbj4KPGRpdiBpZD0ib3V0cHV0IiBjbGFzcz0iY29uc29sZSI+PC9kaXY+Cjx0ZXh0YXJlYSBpZD0iaW5wdXQiIGNsYXNzPSJjb25zb2xlIiBhdXRvZm9jdXMgcm93cz0iMSI+PC90ZXh0YXJlYT4KCjxzY3JpcHQ+CiAgICAvLyBzZXR1cCBvdXIgcGF1c2UgdXBkYXRlcyBidXR0b24KICAgICQoIiNwYXVzZVVwZGF0ZXMiKS5jbGljayhmdW5jdGlvbiAoKSB7CiAgICAgICAgLy9jb25zb2xlLmxvZygicGF1c2UgdXBkYXRlcyAiICsgaXNVcGRhdGVQYXVzZWQpOwogICAgICAgIGlzVXBkYXRlUGF1c2VkID0gIWlzVXBkYXRlUGF1c2VkOwogICAgICAgICQoIiNwYXVzZVVwZGF0ZXMiKS5odG1sKGlzVXBkYXRlUGF1c2VkID8gIlJlc3VtZSBVcGRhdGVzIiA6ICJQYXVzZSBVcGRhdGVzIik7CiAgICB9KTsKCiAgICAkKCIjaW5wdXQiKS5rZXlkb3duKGZ1bmN0aW9uIChlKSB7CiAgICAgICAgaWYgKGUua2V5Q29kZSA9PSAxMykgeyAvLyBFbnRlcgogICAgICAgICAgICAvLyB3ZSBkb24ndCB3YW50IGEgbGluZSBicmVhayBpbiB0aGUgY29uc29sZQogICAgICAgICAgICBlLnByZXZlbnREZWZhdWx0KCk7CiAgICAgICAgICAgIHJ1bkNvbW1hbmQoJCgiI2lucHV0IikudmFsKCkpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDM4KSB7IC8vIFVwCiAgICAgICAgICAgIHByZXZpb3VzQ29tbWFuZCgpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDQwKSB7IC8vIERvd24KICAgICAgICAgICAgbmV4dENvbW1hbmQoKTsKICAgICAgICB9IGVsc2UgaWYgKGUua2V5Q29kZSA9PSAyNykgeyAvLyBFc2NhcGUKICAgICAgICAgICAgcmVzZXRJbnB1dCgpOwogICAgICAgIH0gZWxzZSBpZiAoZS5rZXlDb2RlID09IDkpIHsgLy8gVGFiCiAgICAgICAgICAgIGUucHJldmVudERlZmF1bHQoKTsKICAgICAgICAgICAgY29tcGxldGUoJCgiI2lucHV0IikudmFsKCkpOwogICAgICAgIH0KICAgIH0pOwo8L3NjcmlwdD4KPC9ib2R5PgoKPC9odG1sPg==";
 
         public static string INDEX_CSS =
             "aHRtbCwgYm9keSB7CgloZWlnaHQ6OTklOwp9Cgp0ZXh0YXJlYSB7CglyZXNpemU6bm9uZTsKfQoKYm9keS5jb25zb2xlIHsKICBiYWNrZ3JvdW5kLWNvbG9yOmJsYWNrOwp9CgpkaXYuY29uc29sZSB7CiAgaGVpZ2h0OjEwMCU7CiAgd2lkdGg6MTAwJTsKICBiYWNrZ3JvdW5kLWNvbG9yOiMzODM4Mzg7CiAgY29sb3I6I0YwRjBGMDsKICBmb250LXNpemU6MTRweDsKICBmb250LWZhbWlseTptb25vc3BhY2U7CiAgb3ZlcmZsb3cteTphdXRvOwogIG92ZXJmbG93LXg6YXV0bzsKICB3aGl0ZS1zcGFjZTpub3JtYWw7CiAgd29yZC13cmFwOmJyZWFrLXdvcmQ7Cn0KCnRleHRhcmVhLmNvbnNvbGUgewogIHdpZHRoOjEwMCU7CiAgYmFja2dyb3VuZC1jb2xvcjojMzgzODM4OwogIGNvbG9yOiNGMEYwRjA7CiAgZm9udC1zaXplOjE0cHg7CiAgZm9udC1mYW1pbHk6bW9ub3NwYWNlOwogIHBvc2l0aW9uOmZpeGVkOwogIGJvdHRvbTowJTsKfQoKc3Bhbi5XYXJuaW5nIHsKCWNvbG9yOiNmNGU1NDI7Cn0KCnNwYW4uQXNzZXJ0IHsKCWNvbG9yOiNmNGU1NDI7Cn0KCnNwYW4uRXJyb3IgewoJY29sb3I6I2ZmMDAwMDsKfQoKc3Bhbi5FeGNlcHRpb24gewoJY29sb3I6I2ZmMDAwMDsKfQoKc3Bhbi5IZWxwIHsKCWNvbG9yOiMxNmYzZmY7Cn0KCmJ1dHRvbiNwYXVzZVVwZGF0ZXMgewogIHdpZHRoOjE1MHB4OwogIGhlaWdodDo0MHB4OwogIHBvc2l0aW9uOmZpeGVkOwogIGZsb2F0OnJpZ2h0OwogIG1hcmdpbi1yaWdodDo1MHB4OwogIG1hcmdpbi10b3A6MTBweDsKICByaWdodDowcHg7CiAgb3BhY2l0eTouNTsKfQ==";
@@ -537,6 +561,29 @@ namespace UnityToolbag.ConsoleServer
 
 
         public static string LUA_ENTER_KEY = "enterlua";
+
+        public static string LUA_GLOBAL = @"
+function printall()
+    if CS ~= nil then
+        local goes = CS.UnityEngine.Transform.FindObjectsOfType(typeof(CS.UnityEngine.Transform))
+
+        for i = 0, goes.Length - 1 do
+            print(i, goes[i])
+        end
+        return goes;
+    end
+end
+
+function help()
+    local methods = {
+        printall = ""print and return all active loaded transforms in scene""
+    }
+
+    for i,v in pairs(methods) do
+        print(tostring(i).."" : ""..v);
+    end
+end
+        ";
     }
 
 
@@ -660,10 +707,10 @@ namespace UnityToolbag.ConsoleServer
         }
 
         [Command("lua", "enter lua state")]
-        public static void EnterLua(string[] args)
+        public static void EnterLua(params string[] args)
         {
             CurrentState = STATE_LUA;
-           
+
             if (!ConsoleServer.customActions.ContainsKey(Res.LUA_ENTER_KEY))
             {
                 Log("Lua callback not registered");
@@ -696,6 +743,83 @@ namespace UnityToolbag.ConsoleServer
             else
             {
                 Log(">>>>> lua <<<<<");
+                EnterLua(Res.LUA_GLOBAL);
+            }
+        }
+
+        [Command("sdirs", "print all files in streaming assets directory")]
+        public static void StreamingDirectory(string[] args)
+        {
+            var files = Directory.GetFiles(Application.streamingAssetsPath);
+            foreach (var file in files)
+            {
+                Log("-> " + file);
+            }
+        }
+
+        [Command("pdirs", "print all files in persistent directory")]
+        public static void PersistentDirectory(string[] args)
+        {
+            var files = Directory.GetFiles(Application.persistentDataPath);
+            foreach (var file in files)
+            {
+                Log("-> " + file);
+            }
+        }
+
+        [Command("getpfile", "get file from persistent directory")]
+        public static void GetFileFromPersistent(string[] args)
+        {
+            if (args.Length <= 0)
+            {
+                Log("A file path should be given!");
+                return;
+            }
+
+            var myFile = args[0];
+            var files = Directory.GetFiles(Application.persistentDataPath);
+            foreach (var file in files)
+            {
+                if (file.ToLower().Contains(myFile.ToLower()))
+                {
+                    var filename = Path.GetFileName(file);
+                    Log(string.Format("-> http://{0}:{1}/download/{2}", ConsoleServer.Instance.IP,
+                        ConsoleServer.Instance.Port,
+                        filename));
+                    break;
+                }
+            }
+        }
+
+        [Command("getsfile", "get file from Streaming directory, the file would be copied into persistent path first",
+            true)]
+        public static void GetFileFromStreaming(string[] args)
+        {
+            if (args.Length <= 0)
+            {
+                Log("A file path should be given!");
+                return;
+            }
+
+            var myFile = args[0];
+            var files = Directory.GetFiles(Application.streamingAssetsPath);
+            foreach (var file in files)
+            {
+                if (file.ToLower().Contains(myFile.ToLower()))
+                {
+                    var filename = Path.GetFileName(file);
+                    var www = new WWW(file);
+                    while (!www.isDone)
+                    {
+                    }
+
+                    File.WriteAllBytes(Application.persistentDataPath + "/" + myFile, www.bytes);
+
+                    Log(string.Format("-> http://{0}:{1}/download/{2}", ConsoleServer.Instance.IP,
+                        ConsoleServer.Instance.Port,
+                        filename));
+                    break;
+                }
             }
         }
 
