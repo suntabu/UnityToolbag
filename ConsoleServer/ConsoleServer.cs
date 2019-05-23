@@ -325,7 +325,7 @@ namespace UnityToolbag.ConsoleServer
         {
             if (!UnityEngine.Debug.isDebugBuild)
             {
-                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
+//                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
             }
 
             if (listener != null && listener.IsListening && mRunningThread != null && mRunningThread.IsAlive)
@@ -920,7 +920,7 @@ end
             {
                 if (file.ToLower().Contains(myFile.ToLower()))
                 {
-                    var filename = Path.GetFileName(file);
+                    var filename = file.Replace(Application.persistentDataPath,"");
                     Log(string.Format("-> http://{0}:{1}/download/{2}", ConsoleServer.Instance.IP,
                         ConsoleServer.Instance.Port,
                         filename));
@@ -946,7 +946,7 @@ end
             {
                 if (file.ToLower().Contains(myFile.ToLower()) && !file.EndsWith(".meta"))
                 {
-                    var filename = Path.GetFileName(file);
+                    var filename = file.Replace(Application.streamingAssetsPath,"");
                     var www = new WWW(file);
                     while (!www.isDone)
                     {
@@ -1059,6 +1059,12 @@ end
             else
             {
                 Console.LogToFile(logString, type);
+            }
+            
+            //TODO: add lua execute result logs to show on real time.
+            if (stackTrace.Contains("SaveDoString"))
+            {
+                Log(logString);
             }
         }
 
