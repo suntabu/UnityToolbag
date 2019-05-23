@@ -82,6 +82,7 @@ namespace UnityToolbag.ConsoleServer
             {"htm", "text/html"},
             {"html", "text/html"},
             {"ico", "image/x-icon"},
+            {"log", "text/html"},
         };
 
         private static Dictionary<string, string> internalRes = new Dictionary<string, string>
