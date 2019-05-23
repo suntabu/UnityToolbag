@@ -406,9 +406,15 @@ namespace UnityToolbag.ConsoleServer
             customActions[key] = action;
         }
 
-        public void AddLuaStartAction(Func<string, string> action)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="action">the action to execute lua command, in Xlua it is LuaManager.Instance.SafeDoString(command)</param>
+        /// <param name="filterKey">the key for filter lua command result log for real time viewing</param>
+        public void AddLuaStartAction(Func<string, string> action, string filterKey = "dostring")
         {
             customActions[Res.LUA_ENTER_KEY] = action;
+            Console.LUA_FILTER_KEY = filterKey;
         }
     }
 
@@ -671,6 +677,7 @@ end
         }
 
         private static string _logWarningFilePath;
+        public static string LUA_FILTER_KEY;
 
         private static string LogWarningFilePath
         {
@@ -897,6 +904,7 @@ end
             {
                 ignores.AddRange(args.Where(t => !string.IsNullOrEmpty(t)));
             }
+
             foreach (var file in files)
             {
                 if (!file.EndsWith(".meta"))
@@ -938,7 +946,7 @@ end
             {
                 if (file.ToLower().Contains(myFile.ToLower()))
                 {
-                    var filename = file.Substring(Application.persistentDataPath.Length + 1).Replace('\\','/');
+                    var filename = file.Substring(Application.persistentDataPath.Length + 1).Replace('\\', '/');
                     Log(string.Format("-> http://{0}:{1}/download/{2}", ConsoleServer.Instance.IP,
                         ConsoleServer.Instance.Port,
                         filename));
@@ -964,7 +972,7 @@ end
             {
                 if (file.ToLower().Contains(myFile.ToLower()) && !file.EndsWith(".meta"))
                 {
-                    var filename = file.Substring(Application.streamingAssetsPath.Length + 1).Replace('\\','/');
+                    var filename = file.Substring(Application.streamingAssetsPath.Length + 1).Replace('\\', '/');
                     var www = new WWW(file);
                     while (!www.isDone)
                     {
@@ -1082,7 +1090,7 @@ end
             }
 
             //TODO: add lua execute result logs to show on real time.
-            if (stackTrace.Contains("SaveDoString"))
+            if (!string.IsNullOrEmpty(LUA_FILTER_KEY) && stackTrace.ToLower().Contains(LUA_FILTER_KEY))
             {
                 Log(logString);
             }
