@@ -792,7 +792,7 @@ end
             int count = 0;
             if (int.TryParse(args[0], out count))
             {
-                LogCommand(LogType.Log,count);
+                LogCommand(LogType.Log, count);
             }
             else
             {
@@ -812,14 +812,14 @@ end
             int count = 0;
             if (int.TryParse(args[0], out count))
             {
-                LogCommand(LogType.Error,count);
+                LogCommand(LogType.Error, count);
             }
             else
             {
                 LogCommand(LogType.Error);
             }
         }
-        
+
         [Command("logw", "print unity warning log with line n", false)]
         public static void LogW(params string[] args)
         {
@@ -832,7 +832,7 @@ end
             int count = 0;
             if (int.TryParse(args[0], out count))
             {
-                LogCommand(LogType.Warning,count);
+                LogCommand(LogType.Warning, count);
             }
             else
             {
@@ -881,27 +881,45 @@ end
             }
         }
 
-        [Command("sdirs", "print all files in streaming assets directory")]
+        [Command("sdirs",
+            "print all files in streaming assets directory, parameters could be ignored folders, split with space")]
         public static void StreamingDirectory(string[] args)
         {
-            var files = Directory.GetFiles(Application.streamingAssetsPath, "*", SearchOption.AllDirectories);
+            PrintDirectoryFiles(Application.streamingAssetsPath, args);
+        }
+
+        static void PrintDirectoryFiles(string dirRoot, params string[] args)
+        {
+            var files = Directory.GetFiles(dirRoot, "*", SearchOption.AllDirectories);
+
+            var ignores = new List<string>();
+            if (args.Length > 0)
+            {
+                ignores.AddRange(args.Where(t => !string.IsNullOrEmpty(t)));
+            }
             foreach (var file in files)
             {
                 if (!file.EndsWith(".meta"))
-                    Log("-> " + file);
+                {
+                    bool isLog = true;
+                    foreach (var t in ignores)
+                    {
+                        if (!file.ToLower().Contains(t)) continue;
+                        isLog = false;
+                        break;
+                    }
+
+                    if (isLog)
+                        Log("-> " + file);
+                }
             }
         }
 
-        [Command("pdirs", "print all files in persistent directory")]
+        [Command("pdirs",
+            "print all files in persistent directory, parameters could be ignored folders, split with space")]
         public static void PersistentDirectory(string[] args)
         {
-            var files = Directory.GetFiles(Application.persistentDataPath, "*", SearchOption.AllDirectories);
-
-            foreach (var file in files)
-            {
-                if (!file.EndsWith(".meta"))
-                    Log("-> " + file);
-            }
+            PrintDirectoryFiles(Application.persistentDataPath, args);
         }
 
         [Command("getpfile", "get file from persistent directory")]
@@ -920,7 +938,7 @@ end
             {
                 if (file.ToLower().Contains(myFile.ToLower()))
                 {
-                    var filename = file.Replace(Application.persistentDataPath,"");
+                    var filename = file.Substring(Application.persistentDataPath.Length + 1).Replace('\\','/');
                     Log(string.Format("-> http://{0}:{1}/download/{2}", ConsoleServer.Instance.IP,
                         ConsoleServer.Instance.Port,
                         filename));
@@ -941,12 +959,12 @@ end
 
             var myFile = args[0];
             var files = Directory.GetFiles(Application.streamingAssetsPath, "*", SearchOption.AllDirectories);
-            ;
+
             foreach (var file in files)
             {
                 if (file.ToLower().Contains(myFile.ToLower()) && !file.EndsWith(".meta"))
                 {
-                    var filename = file.Replace(Application.streamingAssetsPath,"");
+                    var filename = file.Substring(Application.streamingAssetsPath.Length + 1).Replace('\\','/');
                     var www = new WWW(file);
                     while (!www.isDone)
                     {
@@ -986,7 +1004,7 @@ end
         private static void LogToFile(string log, LogType type)
         {
             var newLog = string.Format("{0} : {1}", DateTime.Now.ToShortTimeString(), log);
-      
+
             switch (type)
             {
                 case LogType.Log:
@@ -1012,41 +1030,43 @@ end
             }
         }
 
-        public static void LogCommand(LogType type = LogType.Log,int count = 20)
+        public static void LogCommand(LogType type = LogType.Log, int count = 20)
         {
             int printCount = count;
             if (count > MAX_LINES)
             {
-               Log(string.Format("Only support {0} lines log, wanna more please download log", MAX_LINES));
+                Log(string.Format("Only support {0} lines log, wanna more please download log", MAX_LINES));
             }
 
             switch (type)
             {
                 case LogType.Warning:
-                    printCount = Mathf.Min(MAX_LINES,Instance.m_unitylogw.Count);
+                    printCount = Mathf.Min(MAX_LINES, Instance.m_unitylogw.Count);
                     for (int i = 0; i < printCount; i++)
                     {
                         Log(Instance.m_unitylogw[i]);
                     }
+
                     break;
                 case LogType.Log:
-                    printCount = Mathf.Min(MAX_LINES,Instance.m_unitylog.Count);
+                    printCount = Mathf.Min(MAX_LINES, Instance.m_unitylog.Count);
                     for (int i = 0; i < printCount; i++)
                     {
                         Log(Instance.m_unitylog[i]);
                     }
+
                     break;
                 case LogType.Error:
                 case LogType.Assert:
                 case LogType.Exception:
-                    printCount = Mathf.Min(MAX_LINES,Instance.m_unityloge.Count);
+                    printCount = Mathf.Min(MAX_LINES, Instance.m_unityloge.Count);
                     for (int i = 0; i < printCount; i++)
                     {
                         Log(Instance.m_unityloge[i]);
                     }
+
                     break;
             }
-           
         }
 
         /* Callback for Unity logging */
@@ -1060,7 +1080,7 @@ end
             {
                 Console.LogToFile(logString, type);
             }
-            
+
             //TODO: add lua execute result logs to show on real time.
             if (stackTrace.Contains("SaveDoString"))
             {
@@ -1078,13 +1098,15 @@ end
         public static void RegisterCommand(string command, string desc, CommandAttribute.Callback callback,
             bool runOnMainThread = true)
         {
-            if (command == null || command.Length == 0)
+            if (string.IsNullOrEmpty(command))
             {
                 throw new Exception("Command String cannot be empty");
             }
 
-            CommandAttribute cmd = new CommandAttribute(command, desc, runOnMainThread);
-            cmd.m_callback = callback;
+            CommandAttribute cmd = new CommandAttribute(command, desc, runOnMainThread)
+            {
+                m_callback = callback
+            };
 
             Instance.m_commands.Add(cmd);
         }
