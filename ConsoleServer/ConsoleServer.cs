@@ -602,7 +602,7 @@ end
         internal const int STATE_NONE = 0;
 
         // Max number of lines in the console output
-        const int MAX_LINES = 100;
+        const int MAX_LINES = 300;
 
         // Maximum number of commands stored in the history
         const int MAX_HISTORY = 50;
@@ -613,13 +613,86 @@ end
         private static Console instance;
         private CommandTree m_commands;
         private List<string> m_output;
+        private List<string> m_unitylog;
+        private List<string> m_unityloge;
+        private List<string> m_unitylogw;
         private List<string> m_history;
+
+        private static string _dataString;
+
+        private static string DateString
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_dataString))
+                {
+                    _dataString = DateTime.Now.ToString("u")
+                        .Replace("-", "_")
+                        .Replace(" ", "_")
+                        .Replace(":", "_")
+                        .Replace("Z", "");
+                }
+
+                return _dataString;
+            }
+        }
+
+
+        private static string _logFilePath;
+
+        private static string LogFilePath
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_logFilePath))
+                {
+                    _logFilePath = Path.Combine(Application.persistentDataPath, "Unity_" + DateString + ".log");
+                }
+
+                return _logFilePath;
+            }
+        }
+
+        private static string _logErrorFilePath;
+
+        private static string LogErrorFilePath
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_logErrorFilePath))
+                {
+                    _logErrorFilePath = Path.Combine(Application.persistentDataPath,
+                        "Unity_" + DateString + "_error" + ".log");
+                }
+
+                return _logErrorFilePath;
+            }
+        }
+
+        private static string _logWarningFilePath;
+
+        private static string LogWarningFilePath
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_logWarningFilePath))
+                {
+                    _logWarningFilePath = Path.Combine(Application.persistentDataPath,
+                        "Unity_" + DateString + "_warning" + ".log");
+                }
+
+                return _logWarningFilePath;
+            }
+        }
 
         private Console()
         {
             m_commands = new CommandTree();
             m_output = new List<string>();
             m_history = new List<string>();
+            m_unitylog = new List<string>();
+            m_unityloge = new List<string>();
+            m_unitylogw = new List<string>();
 
             RegisterAttributes();
         }
@@ -706,6 +779,66 @@ end
             Log("<span class='Help'>" + help + "</span>");
         }
 
+        [Command("log", "print unity log with line n", false)]
+        public static void Log(params string[] args)
+        {
+            if (args.Length <= 0)
+            {
+                LogCommand();
+                return;
+            }
+
+            int count = 0;
+            if (int.TryParse(args[0], out count))
+            {
+                LogCommand(LogType.Log,count);
+            }
+            else
+            {
+                LogCommand();
+            }
+        }
+
+        [Command("loge", "print unity error log with line n", false)]
+        public static void LogE(params string[] args)
+        {
+            if (args.Length <= 0)
+            {
+                LogCommand(LogType.Error);
+                return;
+            }
+
+            int count = 0;
+            if (int.TryParse(args[0], out count))
+            {
+                LogCommand(LogType.Error,count);
+            }
+            else
+            {
+                LogCommand(LogType.Error);
+            }
+        }
+        
+        [Command("logw", "print unity warning log with line n", false)]
+        public static void LogW(params string[] args)
+        {
+            if (args.Length <= 0)
+            {
+                LogCommand(LogType.Warning);
+                return;
+            }
+
+            int count = 0;
+            if (int.TryParse(args[0], out count))
+            {
+                LogCommand(LogType.Warning,count);
+            }
+            else
+            {
+                LogCommand(LogType.Warning);
+            }
+        }
+
         [Command("lua", "enter lua state")]
         public static void EnterLua(params string[] args)
         {
@@ -750,20 +883,23 @@ end
         [Command("sdirs", "print all files in streaming assets directory")]
         public static void StreamingDirectory(string[] args)
         {
-            var files = Directory.GetFiles(Application.streamingAssetsPath);
+            var files = Directory.GetFiles(Application.streamingAssetsPath, "*", SearchOption.AllDirectories);
             foreach (var file in files)
             {
-                Log("-> " + file);
+                if (!file.EndsWith(".meta"))
+                    Log("-> " + file);
             }
         }
 
         [Command("pdirs", "print all files in persistent directory")]
         public static void PersistentDirectory(string[] args)
         {
-            var files = Directory.GetFiles(Application.persistentDataPath);
+            var files = Directory.GetFiles(Application.persistentDataPath, "*", SearchOption.AllDirectories);
+
             foreach (var file in files)
             {
-                Log("-> " + file);
+                if (!file.EndsWith(".meta"))
+                    Log("-> " + file);
             }
         }
 
@@ -777,7 +913,8 @@ end
             }
 
             var myFile = args[0];
-            var files = Directory.GetFiles(Application.persistentDataPath);
+            var files = Directory.GetFiles(Application.persistentDataPath, "*", SearchOption.AllDirectories);
+            ;
             foreach (var file in files)
             {
                 if (file.ToLower().Contains(myFile.ToLower()))
@@ -802,10 +939,11 @@ end
             }
 
             var myFile = args[0];
-            var files = Directory.GetFiles(Application.streamingAssetsPath);
+            var files = Directory.GetFiles(Application.streamingAssetsPath, "*", SearchOption.AllDirectories);
+            ;
             foreach (var file in files)
             {
-                if (file.ToLower().Contains(myFile.ToLower()))
+                if (file.ToLower().Contains(myFile.ToLower()) && !file.EndsWith(".meta"))
                 {
                     var filename = Path.GetFileName(file);
                     var www = new WWW(file);
@@ -844,17 +982,82 @@ end
                 Instance.m_output.RemoveAt(0);
         }
 
+        private static void LogToFile(string log, LogType type)
+        {
+            var newLog = string.Format("{0} : {1}", DateTime.Now.ToShortTimeString(), log);
+      
+            switch (type)
+            {
+                case LogType.Log:
+                    Instance.m_unitylog.Add(newLog);
+                    if (Instance.m_unitylog.Count > MAX_LINES)
+                        Instance.m_unitylog.RemoveAt(0);
+                    File.AppendAllText(LogFilePath, newLog, Encoding.UTF8);
+                    break;
+                case LogType.Warning:
+                    Instance.m_unitylogw.Add(newLog);
+                    if (Instance.m_unitylogw.Count > MAX_LINES)
+                        Instance.m_unitylogw.RemoveAt(0);
+                    File.AppendAllText(LogWarningFilePath, newLog, Encoding.UTF8);
+                    break;
+                case LogType.Error:
+                case LogType.Assert:
+                case LogType.Exception:
+                    Instance.m_unityloge.Add(newLog);
+                    if (Instance.m_unityloge.Count > MAX_LINES)
+                        Instance.m_unityloge.RemoveAt(0);
+                    File.AppendAllText(LogErrorFilePath, newLog, Encoding.UTF8);
+                    break;
+            }
+        }
+
+        public static void LogCommand(LogType type = LogType.Log,int count = 20)
+        {
+            int printCount = count;
+            if (count > MAX_LINES)
+            {
+               Log(string.Format("Only support {0} lines log, wanna more please download log", MAX_LINES));
+            }
+
+            switch (type)
+            {
+                case LogType.Warning:
+                    printCount = Mathf.Min(MAX_LINES,Instance.m_unitylogw.Count);
+                    for (int i = 0; i < printCount; i++)
+                    {
+                        Log(Instance.m_unitylogw[i]);
+                    }
+                    break;
+                case LogType.Log:
+                    printCount = Mathf.Min(MAX_LINES,Instance.m_unitylog.Count);
+                    for (int i = 0; i < printCount; i++)
+                    {
+                        Log(Instance.m_unitylog[i]);
+                    }
+                    break;
+                case LogType.Error:
+                case LogType.Assert:
+                case LogType.Exception:
+                    printCount = Mathf.Min(MAX_LINES,Instance.m_unityloge.Count);
+                    for (int i = 0; i < printCount; i++)
+                    {
+                        Log(Instance.m_unityloge[i]);
+                    }
+                    break;
+            }
+           
+        }
+
         /* Callback for Unity logging */
         public static void LogCallback(string logString, string stackTrace, LogType type)
         {
             if (type != LogType.Log)
             {
-                Console.Log("<span class='" + type + "'>" + logString);
-                Console.Log(stackTrace + "</span>");
+                Console.LogToFile("<span class='" + type + "'>" + logString + "\n" + stackTrace + "</span>", type);
             }
             else
             {
-                Console.Log(logString);
+                Console.LogToFile(logString, type);
             }
         }
 
