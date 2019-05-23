@@ -48,9 +48,13 @@ namespace UnityToolbag.ConsoleServer
                 System.Net.IPAddress[] addressList = Dns.GetHostAddresses(hostName);
                 if (addressList.Length > 0)
                 {
-                    var ip = addressList[0];
-                    if (ip.AddressFamily == AddressFamily.InterNetwork)
-                        return ip.ToString();
+                    for (int i = 0; i < addressList.Length; i++)
+                    {
+                        var ip = addressList[i];
+                        if (ip.AddressFamily == AddressFamily.InterNetwork)
+                            return ip.ToString();    
+                    }
+                    
                     return "localhost";
                 }
                 else
