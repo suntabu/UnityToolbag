@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -46,7 +47,12 @@ namespace UnityToolbag.ConsoleServer
                 //System.Net.IPAddress[] addressList = Dns.GetHostByName(hostName).AddressList;//会警告GetHostByName()已过期，我运行时且只返回了一个IPv4的地址   
                 System.Net.IPAddress[] addressList = Dns.GetHostAddresses(hostName);
                 if (addressList.Length > 0)
-                    return addressList[0].ToString();
+                {
+                    var ip = addressList[0];
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                        return ip.ToString();
+                    return "localhost";
+                }
                 else
                 {
                     return "localhost";
@@ -325,7 +331,7 @@ namespace UnityToolbag.ConsoleServer
         {
             if (!UnityEngine.Debug.isDebugBuild)
             {
-//                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
+                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
             }
 
             if (listener != null && listener.IsListening && mRunningThread != null && mRunningThread.IsAlive)
