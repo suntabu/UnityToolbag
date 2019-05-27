@@ -335,7 +335,7 @@ namespace UnityToolbag.ConsoleServer
         {
             if (!UnityEngine.Debug.isDebugBuild)
             {
-                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
+//                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
             }
 
             if (listener != null && listener.IsListening && mRunningThread != null && mRunningThread.IsAlive)
@@ -1090,6 +1090,16 @@ end
         /* Callback for Unity logging */
         public static void LogCallback(string logString, string stackTrace, LogType type)
         {
+            if (string.IsNullOrEmpty(stackTrace))
+            {
+                stackTrace = new System.Diagnostics.StackTrace().ToString(); 
+            }
+
+            if (string.IsNullOrEmpty(stackTrace))
+            {
+                Log("No stacktrace string found");
+            }
+            
             if (type != LogType.Log)
             {
                 Console.LogToFile("<span class='" + type + "'>" + logString + "\n" + stackTrace + "</span>", type);
@@ -1099,6 +1109,8 @@ end
                 Console.LogToFile(logString, type);
             }
 
+           
+            
             //TODO: add lua execute result logs to show on real time.
             if (!string.IsNullOrEmpty(LUA_FILTER_KEY) && stackTrace.ToLower().Contains(LUA_FILTER_KEY))
             {
