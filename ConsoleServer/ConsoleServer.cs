@@ -13,25 +13,114 @@ using UnityEngine;
 
 namespace UnityToolbag.ConsoleServer
 {
-    public class ConsoleServer
+    public class ConsoleServer : MonoBehaviour
     {
+        // We can't use the behaviour reference from other threads, so we use a separate bool
+        // to track the instance so we can use that on the other threads.
+        private static bool _instanceExists;
+
+        private static Thread _mainThread;
+        private static object _lockObject = new object();
+        private static readonly Queue<Action> _actions = new Queue<Action>();
+
+        /// <summary>
+        /// Gets a value indicating whether or not the current thread is the game's main thread.
+        /// </summary>
+        public static bool isMainThread
+        {
+            get { return Thread.CurrentThread == _mainThread; }
+        }
+
+        /// <summary>
+        /// Queues an action to be invoked on the main game thread.
+        /// </summary>
+        /// <param name="action">The action to be queued.</param>
+        public static void InvokeAsync(Action action)
+        {
+            if (isMainThread)
+            {
+                // Don't bother queuing work on the main thread; just execute it.
+                action();
+            }
+            else
+            {
+                lock (_lockObject)
+                {
+                    _actions.Enqueue(action);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Queues an action to be invoked on the main game thread and blocks the
+        /// current thread until the action has been executed.
+        /// </summary>
+        /// <param name="action">The action to be queued.</param>
+        public static void Invoke(Action action)
+        {
+            bool hasRun = false;
+
+            InvokeAsync(() =>
+            {
+                action();
+                hasRun = true;
+            });
+
+            // Lock until the action has run
+            while (!hasRun)
+            {
+                Thread.Sleep(5);
+            }
+        }
+
+        void Awake()
+        {
+            _mainThread = Thread.CurrentThread;
+            fileRoot = Application.persistentDataPath + "/";
+            DontDestroyOnLoad(this.gameObject);
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this) {
+                Stop();
+            }
+        }
+        void Update()
+        {
+            lock (_lockObject)
+            {
+                while (_actions.Count > 0)
+                {
+                    _actions.Dequeue()();
+                }
+            }
+        }
+
         private int mPort = 55055;
 
         public bool mRegisterLogCallback = false;
 
         #region singleton
 
-        private ConsoleServer()
-        {
-            mainThread = Thread.CurrentThread;
-            fileRoot = Application.persistentDataPath + "/";
-        }
-
         private static ConsoleServer mInstance;
 
         public static ConsoleServer Instance
         {
-            get { return mInstance ?? (mInstance = new ConsoleServer()); }
+            get
+            {
+                if (!mInstance)
+                {
+                    mInstance = FindObjectOfType<ConsoleServer>();
+                }
+
+                if (!mInstance)
+                {
+                    mInstance = new GameObject("ConsoleServer").AddComponent<ConsoleServer>();
+                }
+
+                return mInstance;
+            }
         }
 
         public int Port
@@ -52,9 +141,9 @@ namespace UnityToolbag.ConsoleServer
                     {
                         var ip = addressList[i];
                         if (ip.AddressFamily == AddressFamily.InterNetwork)
-                            return ip.ToString();    
+                            return ip.ToString();
                     }
-                    
+
                     return "localhost";
                 }
                 else
@@ -68,7 +157,6 @@ namespace UnityToolbag.ConsoleServer
 
         private Thread mRunningThread;
 
-        private static Thread mainThread;
         private static string fileRoot;
         private static HttpListener listener;
         private static List<RouteAttribute> registeredRoutes;
@@ -258,9 +346,9 @@ namespace UnityToolbag.ConsoleServer
                         continue;
 
                     // Upgrade to main thread if necessary
-                    if (route.m_runOnMainThread && Thread.CurrentThread != mainThread)
+                    if (route.m_runOnMainThread && Thread.CurrentThread != _mainThread)
                     {
-                        Dispatcher.Invoke(() =>
+                        Invoke(() =>
                         {
                             context.match = match;
                             route.m_callback(context);
@@ -331,11 +419,11 @@ namespace UnityToolbag.ConsoleServer
         }
 
 
-        public void Start(int port = 55055, bool isRegisterLogCallback = true)
+        public void StartServer(int port = 55055, bool isRegisterLogCallback = true)
         {
             if (!UnityEngine.Debug.isDebugBuild)
             {
-//                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
+                throw new InvalidOperationException("Console Server 只能在Debug Build中使用！");
             }
 
             if (listener != null && listener.IsListening && mRunningThread != null && mRunningThread.IsAlive)
@@ -1092,14 +1180,14 @@ end
         {
             if (string.IsNullOrEmpty(stackTrace))
             {
-                stackTrace = new System.Diagnostics.StackTrace().ToString(); 
+                stackTrace = new System.Diagnostics.StackTrace().ToString();
             }
 
             if (string.IsNullOrEmpty(stackTrace))
             {
                 Log("No stacktrace string found");
             }
-            
+
             if (type != LogType.Log)
             {
                 Console.LogToFile("<span class='" + type + "'>" + logString + "\n" + stackTrace + "</span>", type);
@@ -1109,8 +1197,7 @@ end
                 Console.LogToFile(logString, type);
             }
 
-           
-            
+
             //TODO: add lua execute result logs to show on real time.
             if (!string.IsNullOrEmpty(LUA_FILTER_KEY) && stackTrace.ToLower().Contains(LUA_FILTER_KEY))
             {
@@ -1532,7 +1619,7 @@ end
             {
                 if (m_command.m_runOnMainThread)
                 {
-                    Dispatcher.Invoke(() => { m_command.m_callback(args); });
+                    ConsoleServer.Invoke(() => { m_command.m_callback(args); });
                 }
                 else
                     m_command.m_callback(args);
