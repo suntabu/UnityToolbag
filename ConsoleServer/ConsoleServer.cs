@@ -84,6 +84,7 @@ namespace UnityToolbag.ConsoleServer
         {
             if (Instance == this) {
                 Stop();
+                mInstance = null;
             }
         }
         void Update()
